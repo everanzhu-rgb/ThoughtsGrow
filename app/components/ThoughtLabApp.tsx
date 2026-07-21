@@ -449,7 +449,7 @@ export function ThoughtLabApp() {
   const [newTopicName, setNewTopicName] = useState("");
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "settings" | null>(null);
   const [growthRange, setGrowthRange] = useState("90");
-  const [customTopics, setCustomTopics] = useState<typeof topics>([]);
+  const [customTopics, setCustomTopics] = useState<Array<(typeof topics)[number] & { id?: string }>>([]);
   const [growthLayer, setGrowthLayer] = useState<"standards" | "elements" | "capabilities">("standards");
   const [frameworkEditor, setFrameworkEditor] = useState<{
     kind: FrameworkEditorKind;
@@ -485,6 +485,10 @@ export function ThoughtLabApp() {
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { imports?: KnowledgeImport[] }) => setKnowledgeImports(data.imports ?? []))
       .catch(() => setKnowledgeImports([]));
+    fetch("/api/topics")
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: { topics?: Array<{ id: string; name: string; description: string; focusElement: string; focusStandard: string; sessionCount: number }> }) => setCustomTopics((data.topics ?? []).map((item) => ({ id: item.id, name: item.name, focus: `${item.focusElement} × ${item.focusStandard}`, sessions: item.sessionCount, progress: Math.min(100, item.sessionCount * 12), note: item.description }))))
+      .catch(() => setCustomTopics([]));
   }, []);
 
   const pageTitle = useMemo(
@@ -749,6 +753,24 @@ export function ThoughtLabApp() {
     } catch (error) {
       setKnowledgeMessage(error instanceof Error ? error.message : "状态保存失败，请重试。");
     }
+  }
+
+  async function createTrainingTopic() {
+    if (!newTopicName.trim()) return;
+    const response = await postJson("/api/topics", { name: newTopicName, focusElement: "观点", focusStandard: "广度" });
+    const data = (await response.json()) as { error?: string; topic?: { id: string; name: string; description: string; focusElement: string; focusStandard: string; sessionCount: number } };
+    if (!response.ok || !data.topic) return;
+    setCustomTopics((items) => [...items, { id: data.topic!.id, name: data.topic!.name, focus: `${data.topic!.focusElement} × ${data.topic!.focusStandard}`, sessions: data.topic!.sessionCount, progress: 0, note: data.topic!.description }]);
+    setTopicDialog(null);
+  }
+
+  async function completeTopicPractice() {
+    const topic = customTopics.find((item) => item.name === selectedTopicName);
+    if (topic?.id) {
+      const response = await fetch("/api/topics", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: topic.id, action: "complete_session" }) });
+      if (response.ok) setCustomTopics((items) => items.map((item) => item.id === topic.id ? { ...item, sessions: item.sessions + 1, progress: Math.min(100, item.progress + 12) } : item));
+    }
+    setTopicDialog(null);
   }
 
   function renderDashboard() {
@@ -1614,7 +1636,28 @@ export function ThoughtLabApp() {
 
       {utilityPanel && <div className="modal-backdrop" role="presentation"><section className="framework-modal card utility-modal"><button className="modal-close" aria-label="关闭" onClick={() => setUtilityPanel(null)}>×</button>{utilityPanel === "settings" ? <><span className="eyebrow">系统设置</span><h2>模型与资料安全</h2><div className="settings-row"><span>分析模型</span><strong>DeepSeek V4 Flash</strong></div><div className="settings-row"><span>密钥保存</span><strong>仅服务端加密环境</strong></div><div className="settings-row"><span>数据原则</span><strong>原文先保存，模型结果可追溯</strong></div><p>密钥不会出现在浏览器或源码中。建议定期在 DeepSeek 控制台轮换密钥。</p></> : <><span className="eyebrow">通知</span><h2>今日没有必须处理的事项</h2><div className="notification-item"><strong>思维基座已接入 DeepSeek</strong><p>新材料归位和文本分析将使用当前正式体系作为约束。</p></div><div className="notification-item"><strong>候选材料等待检点</strong><p>进入拾穗门可查看暂存内容并决定是否收录。</p></div></>}</section></div>}
 
-      {topicDialog && <div className="modal-backdrop" role="presentation"><section className="framework-modal card topic-modal"><button className="modal-close" aria-label="关闭" onClick={() => setTopicDialog(null)}>×</button><span className="eyebrow">{topicDialog === "new" ? "建立专题" : topicDialog === "practice" ? "八分钟磨砺" : "专题档案"}</span><h2>{topicDialog === "new" ? "给一个长期问题命名" : selectedTopicName}</h2>{topicDialog === "new" ? <><label className="field-label">专题名称<input value={newTopicName} onChange={(event) => setNewTopicName(event.target.value)} placeholder="例如：识别隐含假设" /></label><label className="field-label">训练焦点<input value="观点 × 广度" readOnly /></label><div className="modal-actions"><button className="ghost-button" onClick={() => setTopicDialog(null)}>取消</button><button className="primary-button" disabled={!newTopicName.trim()} onClick={() => { setCustomTopics((items) => [...items, { name: newTopicName.trim(), focus: "观点 × 广度", sessions: 0, progress: 0, note: "从真实记录中持续积累案例与训练。" }]); setTopicDialog(null); }}>创建专题</button></div></> : topicDialog === "practice" ? <><p>练习：为你当前最相信的一个判断，写出一个足以让你犹豫的反方解释，并指出什么证据会支持它。</p><textarea className="topic-practice-input" placeholder="先完整写出反方观点，再补充证据条件……" /><div className="modal-actions"><button className="ghost-button" onClick={() => setTopicDialog(null)}>稍后再练</button><button className="primary-button" onClick={() => setTopicDialog(null)}>完成本次练习</button></div></> : <><p>这个专题围绕「观点 × 广度」持续积累真实案例。打开一条记录开始练习，或继续使用本周训练。</p><div className="version-facts"><div><small>累计训练</small><strong>5 次</strong></div><div><small>当前阶段</small><strong>从寻找反例进阶到重构对方论证</strong></div></div><button className="primary-button" onClick={() => setTopicDialog("practice")}>开始练习 →</button></>}</section></div>}
+      {topicDialog && (
+        <div className="modal-backdrop" role="presentation">
+          <section className="framework-modal card topic-modal">
+            <button className="modal-close" aria-label="关闭" onClick={() => setTopicDialog(null)}>×</button>
+            <span className="eyebrow">{topicDialog === "new" ? "建立专题" : topicDialog === "practice" ? "八分钟磨砺" : "专题档案"}</span>
+            <h2>{topicDialog === "new" ? "给一个长期问题命名" : selectedTopicName}</h2>
+            {topicDialog === "new" ? <>
+              <label className="field-label">专题名称<input value={newTopicName} onChange={(event) => setNewTopicName(event.target.value)} placeholder="例如：识别隐含假设" /></label>
+              <label className="field-label">训练焦点<input value="观点 × 广度" readOnly /></label>
+              <div className="modal-actions"><button className="ghost-button" onClick={() => setTopicDialog(null)}>取消</button><button className="primary-button" disabled={!newTopicName.trim()} onClick={createTrainingTopic}>创建专题</button></div>
+            </> : topicDialog === "practice" ? <>
+              <p>练习：为你当前最相信的一个判断，写出一个足以让你犹豫的反方解释，并指出什么证据会支持它。</p>
+              <textarea className="topic-practice-input" placeholder="先完整写出反方观点，再补充证据条件……" />
+              <div className="modal-actions"><button className="ghost-button" onClick={() => setTopicDialog(null)}>稍后再练</button><button className="primary-button" onClick={completeTopicPractice}>完成本次练习</button></div>
+            </> : <>
+              <p>这个专题围绕「观点 × 广度」持续积累真实案例。打开一条记录开始练习，或继续使用本周训练。</p>
+              <div className="version-facts"><div><small>累计训练</small><strong>{customTopics.find((item) => item.name === selectedTopicName)?.sessions ?? 5} 次</strong></div><div><small>当前阶段</small><strong>从寻找反例进阶到重构对方论证</strong></div></div>
+              <button className="primary-button" onClick={() => setTopicDialog("practice")}>开始练习 →</button>
+            </>}
+          </section>
+        </div>
+      )}
 
       <nav className="mobile-nav" aria-label="移动端主导航">
         {navItems.slice(0, 5).map((item) => (
