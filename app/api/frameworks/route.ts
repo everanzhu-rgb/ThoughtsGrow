@@ -12,58 +12,38 @@ export async function GET() {
   try {
     await ensureSchema();
     const db = getDb();
-    let frameworks = await db
-      .select()
-      .from(assessmentFrameworks)
-      .orderBy(desc(assessmentFrameworks.createdAt));
+    let frameworks = await db.select().from(assessmentFrameworks).orderBy(desc(assessmentFrameworks.createdAt));
     if (frameworks.length === 0) {
-      const [created] = await db
-        .insert(assessmentFrameworks)
-        .values({
-          id: crypto.randomUUID(),
-          name: "Critical Thinking Base",
-          version: "V1.0",
-          description: "以 8 个思维元素 × 9 个思维标准为核心的证据驱动评估基座。",
-          definitionJson: JSON.stringify(baseDefinition),
-          status: "active",
-        })
-        .returning();
+      const [created] = await db.insert(assessmentFrameworks).values({
+        id: crypto.randomUUID(),
+        name: "Critical Thinking Base",
+        version: "V1.0",
+        description: "以《批判性思维工具》为起点，建立 8 个思维元素 × 9 项思维标准的证据驱动基座。",
+        definitionJson: JSON.stringify(baseDefinition),
+        status: "active",
+      }).returning();
       frameworks = [created];
     }
     return Response.json({ frameworks });
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "读取评估体系失败" },
-      { status: 500 },
-    );
+    return Response.json({ error: error instanceof Error ? error.message : "读取思维基座失败" }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
     await ensureSchema();
-    const payload = (await request.json()) as {
-      name?: string;
-      version?: string;
-      description?: string;
-      definition?: unknown;
-    };
-    const [framework] = await getDb()
-      .insert(assessmentFrameworks)
-      .values({
-        id: crypto.randomUUID(),
-        name: payload.name?.trim() || "Critical Thinking Base",
-        version: payload.version?.trim() || "V1.1",
-        description: payload.description?.trim() || "",
-        definitionJson: JSON.stringify(payload.definition ?? baseDefinition),
-        status: "active",
-      })
-      .returning();
+    const payload = (await request.json()) as { name?: string; version?: string; description?: string; definition?: unknown };
+    const [framework] = await getDb().insert(assessmentFrameworks).values({
+      id: crypto.randomUUID(),
+      name: payload.name?.trim() || "Critical Thinking Base",
+      version: payload.version?.trim() || "V1.1",
+      description: payload.description?.trim() || "",
+      definitionJson: JSON.stringify(payload.definition ?? baseDefinition),
+      status: "active",
+    }).returning();
     return Response.json({ framework }, { status: 201 });
   } catch (error) {
-    return Response.json(
-      { error: error instanceof Error ? error.message : "保存评估体系失败" },
-      { status: 500 },
-    );
+    return Response.json({ error: error instanceof Error ? error.message : "保存思维基座失败" }, { status: 500 });
   }
 }

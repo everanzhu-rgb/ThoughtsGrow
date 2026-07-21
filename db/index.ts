@@ -78,9 +78,20 @@ export async function ensureSchema() {
       status TEXT NOT NULL DEFAULT 'active',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS knowledge_imports (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      source TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      analysis_json TEXT NOT NULL DEFAULT '{}',
+      disposition TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare("CREATE INDEX IF NOT EXISTS thinking_records_created_idx ON thinking_records(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS analysis_record_idx ON analysis_versions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS conversation_record_idx ON conversation_turns(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS training_record_idx ON training_sessions(record_id)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS knowledge_imports_created_idx ON knowledge_imports(created_at)"),
   ]);
 }

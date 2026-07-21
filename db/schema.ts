@@ -70,3 +70,14 @@ export const assessmentFrameworks = sqliteTable("assessment_frameworks", {
   status: text("status").notNull().default("active"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const knowledgeImports = sqliteTable("knowledge_imports", {
+  id: text("id").primaryKey(),
+  content: text("content").notNull(),
+  source: text("source").notNull(),
+  note: text("note").notNull().default(""),
+  analysisJson: text("analysis_json").notNull().default("{}"),
+  disposition: text("disposition").notNull().default("pending"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

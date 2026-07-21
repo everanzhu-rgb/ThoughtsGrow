@@ -9,7 +9,9 @@ type PageKey =
   | "growth"
   | "topics"
   | "knowledge"
-  | "framework";
+  | "framework"
+  | "history"
+  | "analyze";
 
 type FlowPhase =
   | "compose"
@@ -19,6 +21,13 @@ type FlowPhase =
   | "review"
   | "training"
   | "result";
+
+type FrameworkEditorKind =
+  | "version"
+  | "elements"
+  | "standards"
+  | "relations"
+  | "capability";
 
 type StoredRecord = {
   id: string;
@@ -33,14 +42,42 @@ type StoredRecord = {
   createdAt: string;
 };
 
+type FrameworkVersion = {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  definitionJson: string;
+  status: string;
+  createdAt: string;
+};
+
+type ImportAnalysis = {
+  coverage: "covered" | "extension";
+  target: string;
+  recommendation: string;
+  essence: string;
+};
+
+type KnowledgeImport = {
+  id: string;
+  content: string;
+  source: string;
+  note: string;
+  analysisJson: string;
+  disposition: string;
+  createdAt: string;
+};
+
 const navItems: Array<{ id: PageKey; label: string; symbol: string }> = [
-  { id: "dashboard", label: "首页", symbol: "⌂" },
-  { id: "records", label: "思维记录", symbol: "≡" },
-  { id: "new", label: "新建记录", symbol: "+" },
-  { id: "growth", label: "成长分析", symbol: "↗" },
-  { id: "topics", label: "训练专题", symbol: "◎" },
-  { id: "knowledge", label: "知识与方法", symbol: "◇" },
-  { id: "framework", label: "评估体系", symbol: "⚙" },
+  { id: "framework", label: "观星台 · 体系全貌", symbol: "✦" },
+  { id: "knowledge", label: "拾穗门 · 知识导入", symbol: "◇" },
+  { id: "analyze", label: "观照室 · 体系分析", symbol: "◉" },
+  { id: "history", label: "年轮志 · 版本历史", symbol: "◷" },
+  { id: "records", label: "行思录 · 思维记录", symbol: "≡" },
+  { id: "growth", label: "生长谱 · 成长分析", symbol: "↗" },
+  { id: "topics", label: "磨砺场 · 训练专题", symbol: "◎" },
+  { id: "new", label: "落笔 · 新建记录", symbol: "+" },
 ];
 
 const qualityScores = [
@@ -356,7 +393,7 @@ function EmptyScore() {
 }
 
 export function ThoughtLabApp() {
-  const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const [activePage, setActivePage] = useState<PageKey>("framework");
   const [records, setRecords] = useState<StoredRecord[]>(sampleRecords);
   const [selectedRecord, setSelectedRecord] = useState<StoredRecord | null>(null);
   const [flowPhase, setFlowPhase] = useState<FlowPhase>("compose");
@@ -373,11 +410,28 @@ export function ThoughtLabApp() {
   const [trainingAnswer, setTrainingAnswer] = useState("");
   const [knowledgeText, setKnowledgeText] = useState("");
   const [knowledgeAnalyzed, setKnowledgeAnalyzed] = useState(false);
+  const [knowledgeSource, setKnowledgeSource] = useState("");
+  const [knowledgeNote, setKnowledgeNote] = useState("");
+  const [knowledgeImports, setKnowledgeImports] = useState<KnowledgeImport[]>([]);
+  const [currentImport, setCurrentImport] = useState<KnowledgeImport | null>(null);
+  const [currentImportAnalysis, setCurrentImportAnalysis] = useState<ImportAnalysis | null>(null);
+  const [knowledgeMessage, setKnowledgeMessage] = useState("");
+  const [frameworkVersions, setFrameworkVersions] = useState<FrameworkVersion[]>([]);
+  const [historySelected, setHistorySelected] = useState<FrameworkVersion | null>(null);
+  const [analysisText, setAnalysisText] = useState("");
+  const [analysisFocus, setAnalysisFocus] = useState("整体分析");
+  const [analysisComplete, setAnalysisComplete] = useState(false);
   const [growthLayer, setGrowthLayer] = useState<"standards" | "elements" | "capabilities">("standards");
-  const [frameworkEdit, setFrameworkEdit] = useState(false);
+  const [frameworkEditor, setFrameworkEditor] = useState<{
+    kind: FrameworkEditorKind;
+    label: string;
+  } | null>(null);
+  const [frameworkDraftTitle, setFrameworkDraftTitle] = useState("");
+  const [frameworkDraftBody, setFrameworkDraftBody] = useState("");
   const [versionName, setVersionName] = useState("V1.1");
   const [versionNote, setVersionNote] = useState("增加对不确定性表达的观察说明。");
   const [versionSaved, setVersionSaved] = useState(false);
+  const [frameworkSaveError, setFrameworkSaveError] = useState("");
 
   useEffect(() => {
     fetch("/api/records")
@@ -393,8 +447,19 @@ export function ThoughtLabApp() {
       });
   }, []);
 
+  useEffect(() => {
+    fetch("/api/frameworks")
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: { frameworks?: FrameworkVersion[] }) => setFrameworkVersions(data.frameworks ?? []))
+      .catch(() => setFrameworkVersions([]));
+    fetch("/api/knowledge")
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: { imports?: KnowledgeImport[] }) => setKnowledgeImports(data.imports ?? []))
+      .catch(() => setKnowledgeImports([]));
+  }, []);
+
   const pageTitle = useMemo(
-    () => navItems.find((item) => item.id === activePage)?.label || "首页",
+    () => navItems.find((item) => item.id === activePage)?.label || "观星台",
     [activePage],
   );
 
@@ -414,17 +479,22 @@ export function ThoughtLabApp() {
     setFlowPhase("saving");
     setAnalysisStep(0);
 
-    let recordId = crypto.randomUUID();
     try {
       const response = await postJson("/api/records", { title, content, scene, mode });
-      if (!response.ok) throw new Error("save failed");
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || "保存失败，请稍后重试。");
+      }
       const data = (await response.json()) as { record: StoredRecord };
-      recordId = data.record.id;
+      setSavedId(data.record.id);
       setRecords((current) => [data.record, ...current]);
-    } catch {
-      setSaveWarning("原文已保留在当前页面；持久化服务暂时不可用，恢复后可一键重试。");
+    } catch (error) {
+      setFlowPhase("compose");
+      setSaveWarning(
+        `${error instanceof Error ? error.message : "保存失败"} 原文仍保留在输入框中，请重试。`,
+      );
+      return;
     }
-    setSavedId(recordId);
 
     for (let step = 1; step <= 3; step += 1) {
       await new Promise((resolve) => window.setTimeout(resolve, 520));
@@ -503,22 +573,114 @@ export function ThoughtLabApp() {
 
   async function saveFrameworkVersion(event: FormEvent) {
     event.preventDefault();
+    if (!frameworkEditor) return;
+    setFrameworkSaveError("");
     try {
-      await postJson("/api/frameworks", {
+      const response = await postJson("/api/frameworks", {
         name: "Critical Thinking Base",
         version: versionName,
-        description: versionNote,
+        description:
+          frameworkEditor.kind === "version"
+            ? versionNote
+            : `${frameworkEditor.label}：${frameworkDraftTitle}。${frameworkDraftBody}`,
         definition: {
           elements: elements.map((item) => item.name),
           standards: qualityScores.map((item) => item.name),
           capabilities: capabilities.map((item) => item.name),
+          draftChange: {
+            kind: frameworkEditor.kind,
+            target: frameworkEditor.label,
+            title: frameworkDraftTitle,
+            body: frameworkDraftBody,
+          },
         },
       });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || "草案保存失败，请稍后重试。");
+      }
+      const data = (await response.json()) as { framework: FrameworkVersion };
+      setFrameworkVersions((versions) => [data.framework, ...versions]);
       setVersionSaved(true);
-      setFrameworkEdit(false);
-    } catch {
-      setVersionSaved(true);
-      setFrameworkEdit(false);
+      setFrameworkEditor(null);
+    } catch (error) {
+      setFrameworkSaveError(
+        error instanceof Error ? error.message : "草案保存失败，请稍后重试。",
+      );
+    }
+  }
+
+  function openFrameworkEditor(kind: FrameworkEditorKind, label: string) {
+    setFrameworkSaveError("");
+    setVersionSaved(false);
+    setFrameworkEditor({ kind, label });
+
+    const defaults: Record<FrameworkEditorKind, { title: string; body: string }> = {
+      version: {
+        title: "Critical Thinking Base V1.1",
+        body: versionNote,
+      },
+      elements: {
+        title: "思维元素调整",
+        body: "说明要新增、修改或停用的思维元素，以及修改理由。",
+      },
+      standards: {
+        title: label === "思维标准" ? "思维标准调整" : `${label}定义调整`,
+        body: "说明定义、正反证据、证据门槛或推荐追问需要怎样调整。",
+      },
+      relations: {
+        title: "Element × Standard 关系调整",
+        body: "说明需要新增或修改的元素—标准关系，以及适用场景。",
+      },
+      capability: {
+        title: `${label}映射调整`,
+        body: "说明该综合能力应参考哪些思维元素与思维标准。",
+      },
+    };
+
+    setFrameworkDraftTitle(defaults[kind].title);
+    setFrameworkDraftBody(defaults[kind].body);
+  }
+
+  async function analyzeKnowledgeImport() {
+    setKnowledgeMessage("");
+    setKnowledgeAnalyzed(false);
+    try {
+      const response = await postJson("/api/knowledge", {
+        content: knowledgeText,
+        source: knowledgeSource,
+        note: knowledgeNote,
+      });
+      const data = (await response.json()) as {
+        error?: string;
+        item?: KnowledgeImport;
+        analysis?: ImportAnalysis;
+      };
+      if (!response.ok || !data.item || !data.analysis) throw new Error(data.error || "分析失败，请重试。");
+      setCurrentImport(data.item);
+      setCurrentImportAnalysis(data.analysis);
+      setKnowledgeImports((items) => [data.item!, ...items]);
+      setKnowledgeAnalyzed(true);
+    } catch (error) {
+      setKnowledgeMessage(error instanceof Error ? error.message : "分析失败，请重试。");
+    }
+  }
+
+  async function updateImportDisposition(disposition: string) {
+    if (!currentImport) return;
+    setKnowledgeMessage("");
+    try {
+      const response = await fetch("/api/knowledge", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: currentImport.id, disposition }),
+      });
+      if (!response.ok) throw new Error("状态保存失败，请重试。");
+      setKnowledgeImports((items) => items.map((item) => item.id === currentImport.id ? { ...item, disposition } : item));
+      setCurrentImport({ ...currentImport, disposition });
+      setKnowledgeMessage(disposition === "patch" ? "已作为小补丁收录。" : disposition === "material" ? "已保存为候选材料。" : "已暂存，随时可以回来继续。" );
+    } catch (error) {
+      setKnowledgeMessage(error instanceof Error ? error.message : "状态保存失败，请重试。");
     }
   }
 
@@ -1140,45 +1302,87 @@ export function ThoughtLabApp() {
   function renderKnowledge() {
     return (
       <>
-        <SectionHeader
-          eyebrow="可迭代知识库"
-          title="知识与方法"
-          note="粘贴新的理论或训练材料；系统先解释建议，再由你决定是否改变正式体系。"
-        />
+        <SectionHeader eyebrow="拾穗门 · INGESTION" title="让每一次阅读，都成为体系的新枝叶" note="提交内容、出处与当下札记。系统先判断它与现有基座的关系，再由你决定收录、暂存或共创新版本。" />
         <section className="knowledge-layout">
           <article className="card knowledge-input">
-            <span className="card-kicker">导入新知识</span>
-            <h2>把一段值得保留的内容贴进来</h2>
-            <p>可以来自书籍、论文、课程、文章或你自己的总结。</p>
+            <span className="card-kicker">一则新材料</span>
+            <h2>把值得留下的思想带回来</h2>
+            <p>书籍、论坛、课程、论文、谈话或你自己的领悟都可以成为材料。</p>
+            <label className="field-label">出处<input value={knowledgeSource} onChange={(event) => setKnowledgeSource(event.target.value)} placeholder="例如：《批判性思维工具》第三章 / 课程链接" /></label>
             <textarea value={knowledgeText} onChange={(event) => setKnowledgeText(event.target.value)} placeholder="粘贴关于思维理论、评估标准或训练方法的内容…" />
-            <div><span>{knowledgeText.length} 字</span><button className="primary-button" disabled={knowledgeText.trim().length < 10} onClick={() => setKnowledgeAnalyzed(true)}>分析并建议归类 →</button></div>
+            <label className="field-label">此刻札记<textarea className="knowledge-note" value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} placeholder="它为什么触动你？你认为它可能改变什么？" /></label>
+            {knowledgeMessage && <p className="form-warning">{knowledgeMessage}</p>}
+            <div><span>{knowledgeText.length} 字</span><button className="primary-button" disabled={knowledgeText.trim().length < 10 || !knowledgeSource.trim()} onClick={analyzeKnowledgeImport}>与现有基座对照 →</button></div>
           </article>
           <aside className="card knowledge-principle">
-            <span className="principle-mark">守</span>
-            <h3>正式基座不会被静默修改</h3>
-            <p>AI 只能提出建议。接受修改、继续讨论、仅保存材料或暂不处理，都由你确认。</p>
+            <span className="principle-mark">慎</span>
+            <h3>先理解，后归位；先共创，再改版</h3>
+            <p>任何材料都不会静默改变正式基座。小补丁保留出处，大变化形成版本，每一步都可追溯。</p>
+            <div className="ingestion-steps"><span>01 对照覆盖</span><span>02 寻找归处</span><span>03 决定命运</span></div>
           </aside>
         </section>
-        {knowledgeAnalyzed && (
+        {knowledgeAnalyzed && currentImportAnalysis && (
           <section className="card knowledge-result">
-            <span className="eyebrow">分析建议</span>
+            <span className="eyebrow">归位建议 · 系统不自动生效</span>
             <div className="knowledge-result-grid">
-              <div><small>我的理解</small><h3>这段材料强调：面对不确定判断时，应表达概率与信心边界。</h3><p>它补充了现有“准确性”与“公正性”，但也可能形成独立的质量标准。</p></div>
-              <div><small>建议归类</small><h3>思维标准候选 · 不确定性意识</h3><p>与“信息 × 准确性”“推理 × 逻辑性”相关，当前体系只部分覆盖。</p></div>
-              <div><small>可能影响</small><h3>建议新建 V1.1 草案</h3><p>历史记录仍保留 V1.0；只有确认后，新记录才默认使用新版。</p></div>
+              <div><small>材料精义</small><h3>{currentImportAnalysis.essence}</h3><p>出处：{knowledgeSource}</p></div>
+              <div><small>现有归处</small><h3>{currentImportAnalysis.target}</h3><p>{currentImportAnalysis.coverage === "covered" ? "现有体系能够较好承接这则材料。" : "现有体系只能部分承接，可能存在新的方法维度。"}</p></div>
+              <div><small>演化建议</small><h3>{currentImportAnalysis.coverage === "covered" ? "适合作为小补丁" : "值得发起体系共创"}</h3><p>{currentImportAnalysis.recommendation}</p></div>
             </div>
-            <div className="knowledge-actions"><button className="ghost-button">暂不处理</button><button className="ghost-button">仅保存为材料</button><button className="ghost-button">继续讨论</button><button className="primary-button">创建修改草案</button></div>
+            <div className="knowledge-actions"><button className="ghost-button" onClick={() => updateImportDisposition("pending")}>暂存候选</button><button className="ghost-button" onClick={() => updateImportDisposition("material")}>仅存材料</button><button className="ghost-button" onClick={() => updateImportDisposition("patch")}>收录为补丁</button><button className="primary-button" onClick={() => { openFrameworkEditor("version", currentImportAnalysis.target); go("framework"); }}>共创新版本 →</button></div>
           </section>
         )}
-        <section className="knowledge-categories">
-          {[
-            ["理论框架", "12", "批判性思维、决策理论与概率推理"],
-            ["训练方法", "18", "按 Element × Standard 组织的练习"],
-            ["问题模式", "10", "长期出现的个人思维问题"],
-            ["提示模板", "24", "用于逐轮复盘的教练问题"],
-          ].map(([name, count, note]) => (
-            <article className="card" key={name}><span>{count}</span><h3>{name}</h3><p>{note}</p><button className="text-button">查看内容 →</button></article>
-          ))}
+        <section className="card import-ledger">
+          <SectionHeader eyebrow="候选材料簿" title="最近带回的思想" note="每一则材料都保留出处、札记和当前处理状态。" />
+          {knowledgeImports.length === 0 ? <p className="empty-ledger">还没有材料。第一则思想，正等你带回来。</p> : knowledgeImports.slice(0, 6).map((item) => {
+            const analysis = JSON.parse(item.analysisJson || "{}") as Partial<ImportAnalysis>;
+            const status = item.disposition === "patch" ? "已收录补丁" : item.disposition === "material" ? "材料归档" : "等待检点";
+            return <article className="import-row" key={item.id}><div><span>{status}</span><strong>{analysis.target || "待分析"}</strong></div><p>{item.content.slice(0, 72)}{item.content.length > 72 ? "…" : ""}</p><small>{item.source}</small></article>;
+          })}
+        </section>
+      </>
+    );
+  }
+
+  function renderAnalyze() {
+    const focusOptions = ["整体分析", ...elements.map((item) => item.name), ...qualityScores.map((item) => item.name)];
+    const focusIsStandard = qualityScores.some((item) => item.name === analysisFocus);
+    const questions = analysisFocus === "目的"
+      ? ["我真正想达成什么？", "这个目的是否被更大的目的所约束？", "什么结果能证明目的已经实现？"]
+      : analysisFocus === "准确性"
+        ? ["这句话可以被什么证据核验？", "信息来源是否可靠且可复查？", "我是否把推测写成了事实？"]
+        : ["我正在回答的核心问题究竟是什么？", "哪些依据支持它，哪些证据可能推翻它？", "还有谁会从不同立场理解这件事？"];
+    return (
+      <>
+        <SectionHeader eyebrow="观照室 · APPLICATION" title="用整座思维基座，照见一个真实问题" note="先做整体结构扫描，再选择一个元素或标准深入追问。分析依据始终显示在结果旁边。" />
+        <section className="analysis-studio">
+          <article className="card analysis-input-card">
+            <span className="card-kicker">待观照文本</span>
+            <textarea value={analysisText} onChange={(event) => { setAnalysisText(event.target.value); setAnalysisComplete(false); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑……" />
+            <div className="focus-picker"><span>本次重点</span><select value={analysisFocus} onChange={(event) => { setAnalysisFocus(event.target.value); setAnalysisComplete(false); }}>{focusOptions.map((item) => <option key={item}>{item}</option>)}</select></div>
+            <button className="primary-button" disabled={analysisText.trim().length < 10} onClick={() => setAnalysisComplete(true)}>开始体系分析 →</button>
+          </article>
+          <aside className="card analysis-compass"><span>当前基座</span><strong>8 × 9</strong><p>8 个思维元素<br />9 项思维标准<br />1 个可版本追溯的分析依据</p></aside>
+        </section>
+        {analysisComplete && (
+          <section className="analysis-report">
+            <article className="card report-overview"><span className="eyebrow">整体观照</span><h2>这段文本已经表达了一个倾向，但判断所依赖的依据与反方条件仍未完全展开。</h2><div className="report-columns"><div><small>结构亮点</small><p>目的与核心问题可以辨认，文本也给出了初步解释。</p></div><div><small>关键缺口</small><p>信息来源、隐含假设和可能后果需要进一步显化。</p></div><div><small>下一步</small><p>先补充能够推翻当前判断的证据，再比较不同观点。</p></div></div></article>
+            <article className="card focus-report"><span className="eyebrow">专题深描 · {analysisFocus}</span><h2>{analysisFocus === "整体分析" ? "从结构到质量的第二次阅读" : focusIsStandard ? `用“${analysisFocus}”检验这段思考的质量` : `追踪“${analysisFocus}”在文本中的位置`}</h2><p className="evidence-quote">“{analysisText.slice(0, 120)}{analysisText.length > 120 ? "…" : ""}”</p><div className="heuristic-box"><small>启发式追问</small><ul>{questions.map((question) => <li key={question}>{question}</li>)}</ul></div><p className="analysis-basis">分析依据：Critical Thinking Base V1.0 · {analysisFocus}</p></article>
+          </section>
+        )}
+      </>
+    );
+  }
+
+  function renderHistory() {
+    const versions: FrameworkVersion[] = frameworkVersions.length ? frameworkVersions : [{ id: "base-v1", name: "Critical Thinking Base", version: "V1.0", description: "以《批判性思维工具》为起点，建立 8 个思维元素 × 9 项思维标准的基础结构。", definitionJson: "{}", status: "active", createdAt: "2026-07-01T00:00:00.000Z" }];
+    const selected = historySelected ?? versions[0];
+    return (
+      <>
+        <SectionHeader eyebrow="年轮志 · EVOLUTION" title="一座思维基座，是怎样长成的" note="版本保存结构性变化；小补丁保留日常积累。每一次改变都有缘由、内容与影响范围。" />
+        <section className="history-layout">
+          <div className="version-timeline">{versions.map((version, index) => <button className={`card version-node ${selected.id === version.id ? "active" : ""}`} key={version.id} onClick={() => setHistorySelected(version)}><span>{String(versions.length - index).padStart(2, "0")}</span><div><small>{new Date(version.createdAt).toLocaleDateString("zh-CN")}</small><strong>{version.name} {version.version}</strong><p>{version.description || "一次版本化调整。"}</p></div><i>{version.status === "active" ? "当前" : "历史"}</i></button>)}</div>
+          <article className="card version-detail"><span className="eyebrow">版本检点</span><h2>{selected.version}</h2><p>{selected.description || "一次版本化调整。"}</p><div className="version-facts"><div><small>形成缘由</small><strong>{selected.version === "V1.0" ? "建立可操作的批判性思维骨架" : "来自一次材料导入或结构修订"}</strong></div><div><small>核心变化</small><strong>{selected.version === "V1.0" ? "确立元素 × 标准双轴模型" : "保留在该版本的定义快照中"}</strong></div><div><small>影响范围</small><strong>新分析默认采用；历史记录不回写</strong></div></div><button className="ghost-button" onClick={() => go("framework")}>回到体系全貌 →</button></article>
         </section>
       </>
     );
@@ -1188,12 +1392,16 @@ export function ThoughtLabApp() {
     return (
       <>
         <SectionHeader
-          eyebrow="评估基座"
-          title="Critical Thinking Base V1.0"
-          note="先重建结构，再评价质量，最后形成高阶能力画像。"
-          action={<button className="primary-button compact" onClick={() => setFrameworkEdit(true)}>创建新版本</button>}
+          eyebrow="观星台 · THE THINKING COMMONS"
+          title="万象思维基座 · Critical Thinking Base V1.0"
+          note="在这里看见体系的全貌、各部分的含义，以及它们如何共同支撑判断、分析与行动。"
+          action={<button className="primary-button compact" onClick={() => openFrameworkEditor("version", "新版本")}>创建新版本</button>}
         />
         {versionSaved && <div className="success-banner"><span>✓</span><p><strong>{versionName} 草案已保存</strong>旧版本与历史评估保持不变。</p></div>}
+        <section className="card framework-manifesto">
+          <div><span className="eyebrow">基座总述</span><h2>思考不是答案的仓库，而是一套不断校正答案的秩序。</h2></div>
+          <p>当前基座以《批判性思维工具》为第一块地基：先用八个“思维元素”还原一次思考由什么构成，再用九项“思维标准”检验每个环节做得怎样，最终把可靠证据汇聚为综合能力。未来的新书、新课与新经验，不是堆在旁边，而是以补丁或版本的方式融入这张可追溯的关系网。</p>
+        </section>
         <section className="framework-hero card">
           <div className="framework-status"><span className="status-dot" /> 当前启用版本</div>
           <div className="framework-flow">
@@ -1205,20 +1413,20 @@ export function ThoughtLabApp() {
         </section>
         <section className="framework-two-col">
           <article className="card">
-            <SectionHeader eyebrow="Thinking Elements" title="8 个思维元素" note="描述一次思考由什么构成。" action={<button className="text-button">管理元素 →</button>} />
+            <SectionHeader eyebrow="Thinking Elements" title="8 个思维元素" note="描述一次思考由什么构成。" action={<button className="text-button" onClick={() => openFrameworkEditor("elements", "思维元素")}>管理元素 →</button>} />
             <div className="framework-items">
               {elements.map((item, index) => <div key={item.name}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.name}</strong><small>{item.note}</small></div>)}
             </div>
           </article>
           <article className="card">
-            <SectionHeader eyebrow="Intellectual Standards" title="9 个思维标准" note="评价这些思维环节的质量。" action={<button className="text-button">管理标准 →</button>} />
+            <SectionHeader eyebrow="Intellectual Standards" title="9 个思维标准" note="评价这些思维环节的质量。" action={<button className="text-button" onClick={() => openFrameworkEditor("standards", "思维标准")}>管理标准 →</button>} />
             <div className="standard-tags">
-              {qualityScores.map((item, index) => <button key={item.name}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.name}</strong><small>查看定义与证据规则</small></button>)}
+              {qualityScores.map((item, index) => <button key={item.name} onClick={() => openFrameworkEditor("standards", item.name)}><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.name}</strong><small>查看定义与证据规则</small></button>)}
             </div>
           </article>
         </section>
         <section className="card matrix-preview">
-          <SectionHeader eyebrow="核心关系" title="Element × Standard 评估矩阵" note="灰色代表本次无证据，不等于低分。" action={<button className="text-button">编辑关系 →</button>} />
+          <SectionHeader eyebrow="核心关系" title="Element × Standard 评估矩阵" note="灰色代表本次无证据，不等于低分。" action={<button className="text-button" onClick={() => openFrameworkEditor("relations", "评估关系")}>编辑关系 →</button>} />
           <div className="matrix-wrap">
             <div className="matrix">
               <div className="matrix-row matrix-head"><span>元素</span>{qualityScores.map((item) => <small key={item.name}>{item.name.slice(0, 2)}</small>)}</div>
@@ -1237,22 +1445,41 @@ export function ThoughtLabApp() {
         <section className="framework-bottom-grid">
           <article className="card">
             <SectionHeader eyebrow="Higher-order Capabilities" title="综合能力映射" />
-            {capabilities.map((item) => <div className="capability-map" key={item.name}><strong>{item.name}</strong><span>{item.name === "逻辑推理" ? "推理 · 假设 · 信息 → 逻辑性 · 准确性" : item.name === "决策能力" ? "目的 · 信息 · 结果 · 观点 → 深度 · 公正性" : "由相关元素与标准的证据组合形成"}</span><button>编辑</button></div>)}
+            {capabilities.map((item) => <div className="capability-map" key={item.name}><strong>{item.name}</strong><span>{item.name === "逻辑推理" ? "推理 · 假设 · 信息 → 逻辑性 · 准确性" : item.name === "决策能力" ? "目的 · 信息 · 结果 · 观点 → 深度 · 公正性" : "由相关元素与标准的证据组合形成"}</span><button onClick={() => openFrameworkEditor("capability", item.name)}>编辑</button></div>)}
           </article>
           <article className="card">
             <SectionHeader eyebrow="Scene Profiles" title="场景评估重点" />
             {["日常聊天", "听课与阅读", "学术讨论", "重要决策", "每日复盘"].map((item, index) => <div className="scene-profile" key={item}><span>{item}</span><p>{index === 0 ? "清晰性 · 公正性 · 观点" : index === 1 ? "问题 · 概念 · 信息 · 重要性" : index === 2 ? "假设 · 信息 · 推理 · 深度" : index === 3 ? "目的 · 假设 · 结果 · 广度" : "目的 · 判断 · 依据 · 假设 · 结果"}</p></div>)}
           </article>
         </section>
-        {frameworkEdit && (
+        <section className="card essence-questions">
+          <SectionHeader eyebrow="体系精义" title="六问，穿过一次完整思考" note="问题不求多，只求能覆盖这座基座最重要的动作。" action={<button className="text-button" onClick={() => go("analyze")}>带着问题去分析 →</button>} />
+          <div>{[
+            ["定向", "我真正想达成什么，正在回答的核心问题又是什么？"],
+            ["求证", "我依赖了哪些信息，它们准确、充分且可核验吗？"],
+            ["澄义", "关键概念的边界是什么，我们是否在用同一个词说不同的事？"],
+            ["探底", "结论依赖哪些未说出口的假设，推理链条是否成立？"],
+            ["换位", "还有哪些合理观点，谁的利益与经验被我遗漏了？"],
+            ["远眺", "如果判断成立或错误，短期与长期会发生什么？"],
+          ].map(([name, question]) => <article key={name}><span>{name}</span><p>{question}</p></article>)}</div>
+        </section>
+        {frameworkEditor && (
           <div className="modal-backdrop" role="presentation">
             <form className="framework-modal card" onSubmit={saveFrameworkVersion}>
-              <button type="button" className="modal-close" aria-label="关闭" onClick={() => setFrameworkEdit(false)}>×</button>
+              <button type="button" className="modal-close" aria-label="关闭" onClick={() => setFrameworkEditor(null)}>×</button>
               <span className="eyebrow">版本化修改</span><h2>创建一个新版本草案</h2><p>旧版本和历史结果不会被覆盖。你可以先保存，再继续讨论与调整。</p>
               <label className="field-label">版本号<input value={versionName} onChange={(event) => setVersionName(event.target.value)} /></label>
-              <label className="field-label">这次修改的理由<textarea value={versionNote} onChange={(event) => setVersionNote(event.target.value)} /></label>
+              {frameworkEditor.kind === "version" ? (
+                <label className="field-label">这次修改的理由<textarea value={versionNote} onChange={(event) => setVersionNote(event.target.value)} /></label>
+              ) : (
+                <>
+                  <label className="field-label">编辑对象<input value={frameworkDraftTitle} onChange={(event) => setFrameworkDraftTitle(event.target.value)} /></label>
+                  <label className="field-label">修改说明<textarea value={frameworkDraftBody} onChange={(event) => setFrameworkDraftBody(event.target.value)} /></label>
+                </>
+              )}
+              {frameworkSaveError && <p className="form-warning">{frameworkSaveError}</p>}
               <div className="modal-note"><span>i</span><p>新版本确认启用后，未来记录默认使用它；旧记录仍保留当时的版本。</p></div>
-              <div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setFrameworkEdit(false)}>取消</button><button className="primary-button" type="submit">保存 V1.1 草案</button></div>
+              <div className="modal-actions"><button type="button" className="ghost-button" onClick={() => setFrameworkEditor(null)}>取消</button><button className="primary-button" type="submit">保存 {versionName} 草案</button></div>
             </form>
           </div>
         )}
@@ -1268,6 +1495,8 @@ export function ThoughtLabApp() {
       case "topics": return renderTopics();
       case "knowledge": return renderKnowledge();
       case "framework": return renderFramework();
+      case "history": return renderHistory();
+      case "analyze": return renderAnalyze();
       default: return renderDashboard();
     }
   };
@@ -1275,7 +1504,7 @@ export function ThoughtLabApp() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <button className="brand" onClick={() => go("dashboard")} aria-label="返回首页">
+        <button className="brand" onClick={() => go("framework")} aria-label="返回体系全貌">
           <span className="brand-mark">序</span>
           <span><strong>序理</strong><small>THOUGHT LAB</small></span>
         </button>
@@ -1284,7 +1513,7 @@ export function ThoughtLabApp() {
             <button key={item.id} className={activePage === item.id ? "active" : ""} onClick={() => go(item.id)}>
               <span className="nav-symbol" aria-hidden="true">{item.symbol}</span>
               {item.label}
-              {item.id === "new" && <i />}
+              {item.id === "knowledge" && <i />}
             </button>
           ))}
         </nav>
