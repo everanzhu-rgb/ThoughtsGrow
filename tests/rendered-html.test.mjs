@@ -3,11 +3,13 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build contains the incremental thinking library", async () => {
-  const [layout, page, app, knowledgeApi] = await Promise.all([
+  const [layout, page, app, knowledgeApi, aiApi, deepseek] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/knowledge/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/deepseek.ts", import.meta.url), "utf8"),
     access(new URL("../dist/server/index.js", import.meta.url)),
     access(new URL("../public/og.png", import.meta.url)),
   ]);
@@ -21,5 +23,8 @@ test("build contains the incremental thinking library", async () => {
   assert.match(app, /观照室 · 体系分析/);
   assert.match(app, /年轮志 · 版本历史/);
   assert.match(knowledgeApi, /knowledgeImports/);
+  assert.match(aiApi, /deepSeekJson/);
+  assert.match(deepseek, /DEEPSEEK_API_KEY/);
+  assert.doesNotMatch(deepseek, /sk-[a-zA-Z0-9]{16,}/);
   assert.doesNotMatch(`${layout}\n${page}\n${app}`, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });

@@ -1,27 +1,17 @@
 import { desc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "@/db";
 import { knowledgeImports } from "@/db/schema";
+import { deepSeekJson, frameworkBrief } from "@/lib/deepseek";
 
-function analyzeContent(content: string) {
-  const pairs = [
-    { keywords: ["证据", "事实", "数据", "来源"], target: "信息 × 准确性" },
-    { keywords: ["假设", "前提", "条件"], target: "假设 × 深度" },
-    { keywords: ["观点", "立场", "反方", "视角"], target: "观点 × 广度" },
-    { keywords: ["概念", "定义", "边界"], target: "概念 × 精确性" },
-    { keywords: ["目的", "目标", "意图"], target: "目的 × 重要性" },
-  ];
-  const hit = pairs.find((pair) => pair.keywords.some((word) => content.includes(word)));
-  const target = hit?.target ?? "解释与推理 × 逻辑性";
-  const covered = Boolean(hit);
-  return {
-    coverage: covered ? "covered" : "extension",
-    target,
-    recommendation: covered
-      ? "作为现有方法的补充条目或例证加入，不必升级整个体系。"
-      : "当前体系只能部分解释，建议暂存并发起一次融合讨论，再决定是否形成新版本。",
-    essence: content.trim().slice(0, 90),
-  };
-}
+type ImportAnalysis = {
+  coverage: "covered" | "extension";
+  target: string;
+  recommendation: string;
+  essence: string;
+  overlaps: string[];
+  novelty: string;
+  integrationPlan: string[];
+};
 
 export async function GET() {
   try {
@@ -40,7 +30,13 @@ export async function POST(request: Request) {
     if (!payload.content?.trim() || !payload.source?.trim()) {
       return Response.json({ error: "内容和出处均不能为空" }, { status: 400 });
     }
-    const analysis = analyzeContent(payload.content);
+    const analysis = await deepSeekJson<ImportAnalysis>([
+      {
+        role: "system",
+        content: `${frameworkBrief}\n你负责判断新材料与现有思维基座的关系。必须输出 JSON：coverage 只能是 covered 或 extension；target 是最适合的元素×标准或“新维度候选”；recommendation 给出补丁/暂存/升级版本建议；essence 用一句话概括；overlaps 列出与现有体系的重合点；novelty 写真正新增之处；integrationPlan 给出 2-4 个融合步骤。不得因为术语不同就误判为全新内容。`,
+      },
+      { role: "user", content: `出处：${payload.source}\n个人札记：${payload.note || "无"}\n材料：\n${payload.content}` },
+    ]);
     const [item] = await getDb().insert(knowledgeImports).values({
       id: crypto.randomUUID(),
       content: payload.content.trim(),

@@ -57,6 +57,22 @@ type ImportAnalysis = {
   target: string;
   recommendation: string;
   essence: string;
+  overlaps?: string[];
+  novelty?: string;
+  integrationPlan?: string[];
+};
+
+type ModelAnalysis = {
+  overview: string;
+  strengths: string[];
+  gaps: string[];
+  nextStep: string;
+  focusTitle: string;
+  focusFinding: string;
+  evidence: string;
+  questions: string[];
+  structure: Array<{ name: string; text: string }>;
+  assessments: Array<{ element: string; standard: string; finding: string; evidence: string; confidence: string }>;
 };
 
 type KnowledgeImport = {
@@ -421,6 +437,19 @@ export function ThoughtLabApp() {
   const [analysisText, setAnalysisText] = useState("");
   const [analysisFocus, setAnalysisFocus] = useState("整体分析");
   const [analysisComplete, setAnalysisComplete] = useState(false);
+  const [modelAnalysis, setModelAnalysis] = useState<ModelAnalysis | null>(null);
+  const [modelLoading, setModelLoading] = useState(false);
+  const [modelError, setModelError] = useState("");
+  const [recordQuery, setRecordQuery] = useState("");
+  const [recordFilter, setRecordFilter] = useState<"all" | "trained" | "review" | "saved">("all");
+  const [structureEdits, setStructureEdits] = useState<Record<string, string>>({});
+  const [editingStructure, setEditingStructure] = useState<string | null>(null);
+  const [topicDialog, setTopicDialog] = useState<"new" | "detail" | "practice" | null>(null);
+  const [selectedTopicName, setSelectedTopicName] = useState("");
+  const [newTopicName, setNewTopicName] = useState("");
+  const [utilityPanel, setUtilityPanel] = useState<"notifications" | "settings" | null>(null);
+  const [growthRange, setGrowthRange] = useState("90");
+  const [customTopics, setCustomTopics] = useState<typeof topics>([]);
   const [growthLayer, setGrowthLayer] = useState<"standards" | "elements" | "capabilities">("standards");
   const [frameworkEditor, setFrameworkEditor] = useState<{
     kind: FrameworkEditorKind;
@@ -463,11 +492,44 @@ export function ThoughtLabApp() {
     [activePage],
   );
 
+  const filteredRecords = useMemo(() => records.filter((record) => {
+    const query = recordQuery.trim().toLowerCase();
+    const matchesQuery = !query || `${record.title} ${record.content} ${record.primaryIssue}`.toLowerCase().includes(query);
+    const matchesFilter = recordFilter === "all"
+      || (recordFilter === "trained" && record.status === "trained")
+      || (recordFilter === "review" && record.status === "analyzed")
+      || (recordFilter === "saved" && record.status === "saved");
+    return matchesQuery && matchesFilter;
+  }), [records, recordFilter, recordQuery]);
+
   const go = (page: PageKey) => {
     setActivePage(page);
     if (page !== "records") setSelectedRecord(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  async function requestModelAnalysis(text: string, focus: string, analysisScene = "未指定") {
+    const response = await postJson("/api/ai/analyze", { text, focus, scene: analysisScene });
+    const data = (await response.json()) as { error?: string; result?: ModelAnalysis };
+    if (!response.ok || !data.result) throw new Error(data.error || "模型分析失败，请重试。");
+    return data.result;
+  }
+
+  async function runModelAnalysis() {
+    if (analysisText.trim().length < 10) return;
+    setModelLoading(true);
+    setModelError("");
+    setAnalysisComplete(false);
+    try {
+      const result = await requestModelAnalysis(analysisText, analysisFocus);
+      setModelAnalysis(result);
+      setAnalysisComplete(true);
+    } catch (error) {
+      setModelError(error instanceof Error ? error.message : "模型分析失败，请重试。");
+    } finally {
+      setModelLoading(false);
+    }
+  }
 
   async function startAnalysis(event: FormEvent) {
     event.preventDefault();
@@ -496,11 +558,16 @@ export function ThoughtLabApp() {
       return;
     }
 
-    for (let step = 1; step <= 3; step += 1) {
-      await new Promise((resolve) => window.setTimeout(resolve, 520));
-      setAnalysisStep(step);
+    try {
+      setAnalysisStep(1);
+      const result = await requestModelAnalysis(content, "整体分析", scene);
+      setModelAnalysis(result);
+      setAnalysisStep(3);
+      setFlowPhase("structure");
+    } catch (error) {
+      setFlowPhase("compose");
+      setSaveWarning(`${error instanceof Error ? error.message : "分析失败"} 原文已经保存，可稍后重试分析。`);
     }
-    setFlowPhase("structure");
   }
 
   async function confirmStructure() {
@@ -509,11 +576,11 @@ export function ThoughtLabApp() {
       void postJson("/api/records/update", {
         action: "analysis",
         recordId: savedId,
-        summary: "你正在比较两条研究路径，并用小规模验证降低一次性转换的风险。",
-        primaryIssue: "观点单一，反方证据不足",
-        structure,
-        assessments,
-        issues: ["观点 × 广度不足", "假设 × 深度不足"],
+        summary: modelAnalysis?.overview || "已完成思维结构分析。",
+        primaryIssue: modelAnalysis?.gaps?.[0] || "暂无明确缺口",
+        structure: (modelAnalysis?.structure || structure).map((item) => ({ ...item, text: structureEdits[item.name] ?? item.text })),
+        assessments: modelAnalysis?.assessments || assessments,
+        issues: modelAnalysis?.gaps || [],
       });
     }
   }
@@ -909,17 +976,17 @@ export function ThoughtLabApp() {
         <div className="record-toolbar card">
           <label className="search-field">
             <span aria-hidden="true">⌕</span>
-            <input aria-label="搜索记录" placeholder="搜索标题、内容或问题…" />
+            <input aria-label="搜索记录" value={recordQuery} onChange={(event) => setRecordQuery(event.target.value)} placeholder="搜索标题、内容或问题…" />
           </label>
           <div className="filter-chips">
-            <button className="chip active">全部</button>
-            <button className="chip">已训练</button>
-            <button className="chip">待复盘</button>
-            <button className="chip">仅保存</button>
+            <button className={`chip ${recordFilter === "all" ? "active" : ""}`} onClick={() => setRecordFilter("all")}>全部</button>
+            <button className={`chip ${recordFilter === "trained" ? "active" : ""}`} onClick={() => setRecordFilter("trained")}>已训练</button>
+            <button className={`chip ${recordFilter === "review" ? "active" : ""}`} onClick={() => setRecordFilter("review")}>待复盘</button>
+            <button className={`chip ${recordFilter === "saved" ? "active" : ""}`} onClick={() => setRecordFilter("saved")}>仅保存</button>
           </div>
         </div>
         <div className="records-list">
-          {records.map((record) => (
+          {filteredRecords.map((record) => (
             <button className="record-card card" key={record.id} onClick={() => setSelectedRecord(record)}>
               <div className="record-date">
                 <strong>{new Date(record.createdAt).getDate()}</strong>
@@ -942,6 +1009,7 @@ export function ThoughtLabApp() {
               <span className="record-arrow" aria-hidden="true">→</span>
             </button>
           ))}
+          {filteredRecords.length === 0 && <div className="card empty-search">没有找到符合条件的记录。</div>}
         </div>
       </>
     );
@@ -1060,22 +1128,24 @@ export function ThoughtLabApp() {
           <div className="structure-summary card">
             <div className="summary-mark">结论</div>
             <div>
-              <h3>先用小规模验证，降低一次性转向的风险。</h3>
-              <p>你不是在简单选择“继续或放弃”，而是在设计一个可逆的验证步骤来获得更多信息。</p>
+              <h3>{modelAnalysis?.overview || "系统已完成结构重建。"}</h3>
+              <p>{modelAnalysis?.nextStep || "请确认结构是否符合你的本意。"}</p>
             </div>
           </div>
           <div className="structure-grid">
-            {structure.map((item, index) => (
+            {(modelAnalysis?.structure?.length ? modelAnalysis.structure : structure).map((item, index) => (
               <article className="structure-card card" key={item.name}>
                 <div><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.name}</strong></div>
-                <p>{item.text}</p>
-                <button aria-label={`修改${item.name}`}>修改</button>
+                {editingStructure === item.name
+                  ? <textarea className="structure-editor" value={structureEdits[item.name] ?? item.text} onChange={(event) => setStructureEdits((edits) => ({ ...edits, [item.name]: event.target.value }))} />
+                  : <p>{structureEdits[item.name] ?? item.text}</p>}
+                <button aria-label={`修改${item.name}`} onClick={() => setEditingStructure(editingStructure === item.name ? null : item.name)}>{editingStructure === item.name ? "完成" : "修改"}</button>
               </article>
             ))}
           </div>
           <div className="sticky-action card">
             <div><strong>这个结构符合你的本意吗？</strong><span>确认后才会进入证据驱动的质量评估。</span></div>
-            <div><button className="ghost-button">有几处需要修改</button><button className="primary-button" onClick={confirmStructure}>确认结构，继续评估 →</button></div>
+            <div><button className="ghost-button" onClick={() => setEditingStructure((modelAnalysis?.structure || structure)[0]?.name || null)}>有几处需要修改</button><button className="primary-button" onClick={confirmStructure}>确认结构，继续评估 →</button></div>
           </div>
         </div>
       );
@@ -1093,21 +1163,21 @@ export function ThoughtLabApp() {
           <section className="assessment-overview card">
             <div>
               <span className="card-kicker">整体判断</span>
-              <h3>行动路径清楚，风险意识较好；但对反方观点与验证条件的处理还不够。</h3>
-              <p>最大的优点是把不可逆决策拆成了一个可验证步骤。最值得深入的是：什么结果才足以支持真正转向？</p>
+              <h3>{modelAnalysis?.overview || "已完成整体质量评估。"}</h3>
+              <p>{modelAnalysis?.nextStep || "请根据证据继续复盘。"}</p>
             </div>
             <div className="overview-score"><strong>72</strong><span>本次可评估质量</span><small>证据覆盖 5 / 72 组合</small></div>
           </section>
           <div className="assessment-list">
-            {assessments.map((item) => (
-              <article className="assessment-card card" key={item.pair}>
+            {(modelAnalysis?.assessments || []).map((item) => (
+              <article className="assessment-card card" key={`${item.element}-${item.standard}`}>
                 <div className="assessment-score">
-                  {item.score === null ? <EmptyScore /> : <><strong>{item.score}</strong><small>/ 100</small></>}
+                  <EmptyScore />
                 </div>
                 <div className="assessment-main">
-                  <div className="assessment-title"><h3>{item.pair}</h3><span className={`evidence-badge evidence-${item.evidence}`}>证据 {item.evidence}</span></div>
-                  <blockquote>“{item.quote}”</blockquote>
-                  <p>{item.reason}</p>
+                  <div className="assessment-title"><h3>{item.element} × {item.standard}</h3><span className="evidence-badge evidence-strong">证据分析</span></div>
+                  <blockquote>“{item.evidence}”</blockquote>
+                  <p>{item.finding}</p>
                 </div>
                 <div className="confidence"><span>判断信心</span><strong>{item.confidence}</strong></div>
               </article>
@@ -1116,11 +1186,11 @@ export function ThoughtLabApp() {
           <section className="card issue-card">
             <div className="issue-index">核心问题 01</div>
             <div>
-              <span className="eyebrow">观点 × 广度</span>
-              <h2>目前主要从自己的时间成本出发，还没有构建最强的反方判断。</h2>
-              <p>这可能让“小规模验证”看起来天然合理，却没有检查它是否会拖慢更重要的工作，或是否真的能回答关键问题。</p>
+              <span className="eyebrow">模型识别的主要缺口</span>
+              <h2>{modelAnalysis?.gaps?.[0] || "当前没有足够证据形成主要缺口判断。"}</h2>
+              <p>{modelAnalysis?.focusFinding || "继续补充文本证据后再判断。"}</p>
             </div>
-            <div className="issue-direction"><span>建议方向</span><strong>先站到“完全不该转向”的立场上，构建一个你自己也觉得有力量的论证。</strong></div>
+            <div className="issue-direction"><span>建议方向</span><strong>{modelAnalysis?.nextStep || "继续补充证据。"}</strong></div>
           </section>
           <div className="sticky-action card">
             <div><strong>下一步：只聚焦一个问题</strong><span>教练会一次问一个问题，不把几十项检查同时抛给你。</span></div>
@@ -1131,9 +1201,8 @@ export function ThoughtLabApp() {
     }
 
     if (flowPhase === "review") {
-      const question = reviewTurn === 0
-        ? "假设你最终决定完全不转向新方法，最有说服力的理由会是什么？"
-        : "如果“小规模验证”得出了积极结果，什么条件仍然会让你选择不转向？";
+      const question = modelAnalysis?.questions?.[reviewTurn]
+        || (reviewTurn === 0 ? "哪一项证据最可能改变你当前的判断？" : "你还遗漏了谁的观点或哪一种后果？");
       return (
         <div className="coach-page">
           <div className="coach-header">
@@ -1219,7 +1288,7 @@ export function ThoughtLabApp() {
         </section>
         <section className="card topic-match-card">
           <div><span className="eyebrow">专题匹配建议</span><h2>这次训练与「构建最强反方观点」高度相关</h2><p>相似点：都聚焦观点 × 广度；本次新增了“改变条件”的具体案例。系统不会自动加入，最终由你决定。</p></div>
-          <div className="topic-match-actions"><button className="ghost-button">不加入</button><button className="ghost-button">新建专题</button><button className="primary-button">确认加入专题</button></div>
+          <div className="topic-match-actions"><button className="ghost-button" onClick={() => resetFlow()}>不加入</button><button className="ghost-button" onClick={() => { setNewTopicName(""); setTopicDialog("new"); }}>新建专题</button><button className="primary-button" onClick={() => { setSelectedTopicName("构建最强反方观点"); setTopicDialog("detail"); }}>确认加入专题</button></div>
         </section>
         <div className="result-actions"><button className="ghost-button" onClick={() => go("growth")}>查看成长曲线</button><button className="primary-button" onClick={resetFlow}>完成并返回记录</button></div>
       </div>
@@ -1242,10 +1311,10 @@ export function ThoughtLabApp() {
         <section className="card growth-main-card">
           <div className="growth-card-head">
             <div><span className="card-kicker">{growthLayer === "standards" ? "9 项质量标准" : growthLayer === "elements" ? "8 个结构元素" : "5 项高阶能力"}</span><h2>{growthLayer === "standards" ? "清晰性与深度提升最明显" : growthLayer === "elements" ? "主动识别假设仍是主要瓶颈" : "反思能力保持领先"}</h2></div>
-            <select aria-label="时间范围" defaultValue="90"><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="365">最近一年</option></select>
+            <select aria-label="时间范围" value={growthRange} onChange={(event) => setGrowthRange(event.target.value)}><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="365">最近一年</option></select>
           </div>
           <GrowthChart large />
-          <div className="growth-insight"><span>观察</span><p>7 月以来，真实记录中的“问题界定”更加稳定；两次广度训练后出现即时提升，但还没有足够后续证据转为实线。</p></div>
+          <div className="growth-insight"><span>观察</span><p>{growthRange === "30" ? "最近 30 天的记录显示，问题界定开始更加稳定。" : growthRange === "365" ? "年度样本仍在积累；当前改善主要集中在清晰性和深度。" : "最近 90 天，真实记录中的问题界定更加稳定；训练后的即时提升仍需后续证据转为实线。"}</p></div>
         </section>
         <section className="metrics-grid">
           {(growthLayer === "standards" ? qualityScores : growthLayer === "elements" ? elements.map((item) => ({ name: item.name, score: item.level, change: item.level > 70 ? 4 : 1 })) : capabilities.map((item) => ({ name: item.name, score: item.score, change: item.delta }))).map((item) => (
@@ -1268,21 +1337,21 @@ export function ThoughtLabApp() {
           eyebrow="长期训练档案"
           title="训练专题"
           note="围绕反复出现的问题积累案例、训练与变化，而不是随机做题。"
-          action={<button className="primary-button compact">＋ 新建专题</button>}
+          action={<button className="primary-button compact" onClick={() => { setNewTopicName(""); setTopicDialog("new"); }}>＋ 新建专题</button>}
         />
         <section className="weekly-focus card">
           <div className="weekly-number">07</div>
           <div><span className="eyebrow">本周聚焦</span><h2>看见另一种解释</h2><p>一次只训练一个主要标准：广度。把“寻找反方”变成形成判断前的自然动作。</p></div>
           <div className="weekly-goal"><span>本周目标</span><strong>3 / 5</strong><div><i style={{ width: "60%" }} /></div></div>
-          <button className="primary-button">开始 8 分钟练习 →</button>
+          <button className="primary-button" onClick={() => { setSelectedTopicName("看见另一种解释"); setTopicDialog("practice"); }}>开始 8 分钟练习 →</button>
         </section>
         <div className="topic-grid">
-          {topics.map((topic, index) => (
+          {[...topics, ...customTopics].map((topic, index) => (
             <article className="topic-card card" key={topic.name}>
               <div className="topic-card-top"><span className="topic-number">0{index + 1}</span><span className="pill sage">{index === 0 ? "进行中" : "已建立"}</span></div>
               <h3>{topic.name}</h3><span className="topic-focus">{topic.focus}</span><p>{topic.note}</p>
               <div className="topic-progress"><div><i style={{ width: `${topic.progress}%` }} /></div><span>{topic.sessions} 次训练</span></div>
-              <button className="text-button">打开专题 →</button>
+              <button className="text-button" onClick={() => { setSelectedTopicName(topic.name); setTopicDialog("detail"); }}>打开专题 →</button>
             </article>
           ))}
         </div>
@@ -1360,14 +1429,15 @@ export function ThoughtLabApp() {
             <span className="card-kicker">待观照文本</span>
             <textarea value={analysisText} onChange={(event) => { setAnalysisText(event.target.value); setAnalysisComplete(false); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑……" />
             <div className="focus-picker"><span>本次重点</span><select value={analysisFocus} onChange={(event) => { setAnalysisFocus(event.target.value); setAnalysisComplete(false); }}>{focusOptions.map((item) => <option key={item}>{item}</option>)}</select></div>
-            <button className="primary-button" disabled={analysisText.trim().length < 10} onClick={() => setAnalysisComplete(true)}>开始体系分析 →</button>
+            {modelError && <p className="form-warning">{modelError}</p>}
+            <button className="primary-button" disabled={analysisText.trim().length < 10 || modelLoading} onClick={runModelAnalysis}>{modelLoading ? "DeepSeek 正在观照…" : "开始体系分析 →"}</button>
           </article>
           <aside className="card analysis-compass"><span>当前基座</span><strong>8 × 9</strong><p>8 个思维元素<br />9 项思维标准<br />1 个可版本追溯的分析依据</p></aside>
         </section>
-        {analysisComplete && (
+        {analysisComplete && modelAnalysis && (
           <section className="analysis-report">
-            <article className="card report-overview"><span className="eyebrow">整体观照</span><h2>这段文本已经表达了一个倾向，但判断所依赖的依据与反方条件仍未完全展开。</h2><div className="report-columns"><div><small>结构亮点</small><p>目的与核心问题可以辨认，文本也给出了初步解释。</p></div><div><small>关键缺口</small><p>信息来源、隐含假设和可能后果需要进一步显化。</p></div><div><small>下一步</small><p>先补充能够推翻当前判断的证据，再比较不同观点。</p></div></div></article>
-            <article className="card focus-report"><span className="eyebrow">专题深描 · {analysisFocus}</span><h2>{analysisFocus === "整体分析" ? "从结构到质量的第二次阅读" : focusIsStandard ? `用“${analysisFocus}”检验这段思考的质量` : `追踪“${analysisFocus}”在文本中的位置`}</h2><p className="evidence-quote">“{analysisText.slice(0, 120)}{analysisText.length > 120 ? "…" : ""}”</p><div className="heuristic-box"><small>启发式追问</small><ul>{questions.map((question) => <li key={question}>{question}</li>)}</ul></div><p className="analysis-basis">分析依据：Critical Thinking Base V1.0 · {analysisFocus}</p></article>
+            <article className="card report-overview"><span className="eyebrow">整体观照</span><h2>{modelAnalysis.overview}</h2><div className="report-columns"><div><small>结构亮点</small><p>{modelAnalysis.strengths.join("；") || "暂未识别到足够证据。"}</p></div><div><small>关键缺口</small><p>{modelAnalysis.gaps.join("；") || "暂未识别到足够证据。"}</p></div><div><small>下一步</small><p>{modelAnalysis.nextStep}</p></div></div></article>
+            <article className="card focus-report"><span className="eyebrow">专题深描 · {analysisFocus}</span><h2>{modelAnalysis.focusTitle || (focusIsStandard ? `用“${analysisFocus}”检验这段思考的质量` : `追踪“${analysisFocus}”在文本中的位置`)}</h2><p>{modelAnalysis.focusFinding}</p><p className="evidence-quote">“{modelAnalysis.evidence || analysisText.slice(0, 120)}”</p><div className="heuristic-box"><small>启发式追问</small><ul>{(modelAnalysis.questions.length ? modelAnalysis.questions : questions).map((question) => <li key={question}>{question}</li>)}</ul></div><p className="analysis-basis">分析依据：Critical Thinking Base V1.0 · {analysisFocus} · DeepSeek</p></article>
           </section>
         )}
       </>
@@ -1525,7 +1595,7 @@ export function ThoughtLabApp() {
         <div className="profile">
           <span className="profile-avatar">E</span>
           <span><strong>我的思维档案</strong><small>连续记录 18 天</small></span>
-          <button aria-label="个人设置">···</button>
+          <button aria-label="个人设置" onClick={() => setUtilityPanel("settings")}>···</button>
         </div>
       </aside>
 
@@ -1534,13 +1604,17 @@ export function ThoughtLabApp() {
           <div className="mobile-brand"><span className="brand-mark">序</span><strong>序理</strong></div>
           <div className="breadcrumb"><span>序理</span><i>/</i><strong>{pageTitle}</strong></div>
           <div className="topbar-actions">
-            <span className="date-label">7 月 20 日 · 星期一</span>
-            <button aria-label="搜索">⌕</button>
-            <button aria-label="通知" className="notification-button">·<i /></button>
+            <span className="date-label">{new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date())}</span>
+            <button aria-label="搜索" onClick={() => go("records")}>⌕</button>
+            <button aria-label="通知" className="notification-button" onClick={() => setUtilityPanel("notifications")}>·<i /></button>
           </div>
         </header>
         <main className={`page-content page-${activePage}`}>{renderPage()}</main>
       </div>
+
+      {utilityPanel && <div className="modal-backdrop" role="presentation"><section className="framework-modal card utility-modal"><button className="modal-close" aria-label="关闭" onClick={() => setUtilityPanel(null)}>×</button>{utilityPanel === "settings" ? <><span className="eyebrow">系统设置</span><h2>模型与资料安全</h2><div className="settings-row"><span>分析模型</span><strong>DeepSeek V4 Flash</strong></div><div className="settings-row"><span>密钥保存</span><strong>仅服务端加密环境</strong></div><div className="settings-row"><span>数据原则</span><strong>原文先保存，模型结果可追溯</strong></div><p>密钥不会出现在浏览器或源码中。建议定期在 DeepSeek 控制台轮换密钥。</p></> : <><span className="eyebrow">通知</span><h2>今日没有必须处理的事项</h2><div className="notification-item"><strong>思维基座已接入 DeepSeek</strong><p>新材料归位和文本分析将使用当前正式体系作为约束。</p></div><div className="notification-item"><strong>候选材料等待检点</strong><p>进入拾穗门可查看暂存内容并决定是否收录。</p></div></>}</section></div>}
+
+      {topicDialog && <div className="modal-backdrop" role="presentation"><section className="framework-modal card topic-modal"><button className="modal-close" aria-label="关闭" onClick={() => setTopicDialog(null)}>×</button><span className="eyebrow">{topicDialog === "new" ? "建立专题" : topicDialog === "practice" ? "八分钟磨砺" : "专题档案"}</span><h2>{topicDialog === "new" ? "给一个长期问题命名" : selectedTopicName}</h2>{topicDialog === "new" ? <><label className="field-label">专题名称<input value={newTopicName} onChange={(event) => setNewTopicName(event.target.value)} placeholder="例如：识别隐含假设" /></label><label className="field-label">训练焦点<input value="观点 × 广度" readOnly /></label><div className="modal-actions"><button className="ghost-button" onClick={() => setTopicDialog(null)}>取消</button><button className="primary-button" disabled={!newTopicName.trim()} onClick={() => { setCustomTopics((items) => [...items, { name: newTopicName.trim(), focus: "观点 × 广度", sessions: 0, progress: 0, note: "从真实记录中持续积累案例与训练。" }]); setTopicDialog(null); }}>创建专题</button></div></> : topicDialog === "practice" ? <><p>练习：为你当前最相信的一个判断，写出一个足以让你犹豫的反方解释，并指出什么证据会支持它。</p><textarea className="topic-practice-input" placeholder="先完整写出反方观点，再补充证据条件……" /><div className="modal-actions"><button className="ghost-button" onClick={() => setTopicDialog(null)}>稍后再练</button><button className="primary-button" onClick={() => setTopicDialog(null)}>完成本次练习</button></div></> : <><p>这个专题围绕「观点 × 广度」持续积累真实案例。打开一条记录开始练习，或继续使用本周训练。</p><div className="version-facts"><div><small>累计训练</small><strong>5 次</strong></div><div><small>当前阶段</small><strong>从寻找反例进阶到重构对方论证</strong></div></div><button className="primary-button" onClick={() => setTopicDialog("practice")}>开始练习 →</button></>}</section></div>}
 
       <nav className="mobile-nav" aria-label="移动端主导航">
         {navItems.slice(0, 5).map((item) => (

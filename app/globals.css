@@ -3209,6 +3209,70 @@ button:disabled {
   line-height: 1.6;
 }
 
+.structure-editor {
+  background: #fbfcf8;
+  border: 1px solid #b8ccc0;
+  border-radius: 8px;
+  font-size: 10px;
+  line-height: 1.7;
+  min-height: 92px;
+  padding: 10px;
+  resize: vertical;
+  width: 100%;
+}
+
+.empty-search {
+  color: var(--muted);
+  padding: 35px;
+  text-align: center;
+}
+
+.utility-modal,
+.topic-modal {
+  max-width: 560px;
+}
+
+.settings-row,
+.notification-item {
+  border-top: 1px solid var(--line-soft);
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  padding: 14px 0;
+}
+
+.settings-row span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.settings-row strong,
+.notification-item strong {
+  font-size: 10px;
+}
+
+.notification-item {
+  flex-direction: column;
+  gap: 5px;
+}
+
+.notification-item p {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.topic-practice-input {
+  background: #fbfcf8;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  min-height: 150px;
+  padding: 15px;
+  resize: vertical;
+  width: 100%;
+}
+
 .knowledge-input > div {
   align-items: center;
   display: flex;
