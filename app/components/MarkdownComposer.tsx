@@ -1,15 +1,12 @@
 "use client";
 
 import JSZip from "jszip";
-import * as pdfjs from "pdfjs-dist";
 import pdfWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { useRef, useState } from "react";
-
-pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 type MaterialResponse = {
   error?: string;
@@ -32,6 +29,8 @@ async function extractOffice(file: File, extension: string) {
 }
 
 async function extractPdf(file: File) {
+  const pdfjs = await import("pdfjs-dist");
+  pdfjs.GlobalWorkerOptions.workerSrc = pdfWorker;
   const document = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
   const pages: string[] = [];
   for (let index = 1; index <= document.numPages; index += 1) {
