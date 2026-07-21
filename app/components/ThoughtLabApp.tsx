@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { MarkdownComposer } from "./MarkdownComposer";
 
 type PageKey =
   | "dashboard"
@@ -450,6 +451,8 @@ export function ThoughtLabApp() {
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "settings" | null>(null);
   const [growthRange, setGrowthRange] = useState("90");
   const [customTopics, setCustomTopics] = useState<Array<(typeof topics)[number] & { id?: string }>>([]);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [helpTopic, setHelpTopic] = useState<"start" | "import" | "analyze" | "evolve">("start");
   const [growthLayer, setGrowthLayer] = useState<"standards" | "elements" | "capabilities">("standards");
   const [frameworkEditor, setFrameworkEditor] = useState<{
     kind: FrameworkEditorKind;
@@ -1076,11 +1079,7 @@ export function ThoughtLabApp() {
             </fieldset>
             <label className="field-label record-text-label">
               记录你的思考
-              <textarea
-                value={content}
-                onChange={(event) => setContent(event.target.value)}
-                placeholder="你在想什么？做了怎样的判断？依据是什么？直接写下来就好…"
-              />
+              <MarkdownComposer value={content} onChange={setContent} placeholder="你在想什么？做了怎样的判断？依据是什么？支持 Markdown、公式、文件与外部链接…" />
               <span className="char-count">{content.length} 字</span>
             </label>
             <details className="mother-prompts">
@@ -1400,7 +1399,7 @@ export function ThoughtLabApp() {
             <h2>把值得留下的思想带回来</h2>
             <p>书籍、论坛、课程、论文、谈话或你自己的领悟都可以成为材料。</p>
             <label className="field-label">出处<input value={knowledgeSource} onChange={(event) => setKnowledgeSource(event.target.value)} placeholder="例如：《批判性思维工具》第三章 / 课程链接" /></label>
-            <textarea value={knowledgeText} onChange={(event) => setKnowledgeText(event.target.value)} placeholder="粘贴关于思维理论、评估标准或训练方法的内容…" />
+            <MarkdownComposer value={knowledgeText} onChange={setKnowledgeText} sourceChanged={setKnowledgeSource} placeholder="粘贴关于思维理论、评估标准或训练方法的内容；也可以上传文件或读取链接…" />
             <label className="field-label">此刻札记<textarea className="knowledge-note" value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} placeholder="它为什么触动你？你认为它可能改变什么？" /></label>
             {knowledgeMessage && <p className="form-warning">{knowledgeMessage}</p>}
             <div><span>{knowledgeText.length} 字</span><button className="primary-button" disabled={knowledgeText.trim().length < 10 || !knowledgeSource.trim()} onClick={analyzeKnowledgeImport}>与现有基座对照 →</button></div>
@@ -1449,7 +1448,7 @@ export function ThoughtLabApp() {
         <section className="analysis-studio">
           <article className="card analysis-input-card">
             <span className="card-kicker">待观照文本</span>
-            <textarea value={analysisText} onChange={(event) => { setAnalysisText(event.target.value); setAnalysisComplete(false); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑……" />
+            <MarkdownComposer value={analysisText} onChange={(next) => { setAnalysisText(next); setAnalysisComplete(false); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑；也可以上传文件或读取链接……" />
             <div className="focus-picker"><span>本次重点</span><select value={analysisFocus} onChange={(event) => { setAnalysisFocus(event.target.value); setAnalysisComplete(false); }}>{focusOptions.map((item) => <option key={item}>{item}</option>)}</select></div>
             {modelError && <p className="form-warning">{modelError}</p>}
             <button className="primary-button" disabled={analysisText.trim().length < 10 || modelLoading} onClick={runModelAnalysis}>{modelLoading ? "DeepSeek 正在观照…" : "开始体系分析 →"}</button>
@@ -1487,7 +1486,7 @@ export function ThoughtLabApp() {
           eyebrow="观星台 · THE THINKING COMMONS"
           title="万象思维基座 · Critical Thinking Base V1.0"
           note="在这里看见体系的全貌、各部分的含义，以及它们如何共同支撑判断、分析与行动。"
-          action={<button className="primary-button compact" onClick={() => openFrameworkEditor("version", "新版本")}>创建新版本</button>}
+          action={<div className="header-actions"><button className="ghost-button compact" onClick={() => setHelpOpen(true)}>请引路人 · 使用指南</button><button className="primary-button compact" onClick={() => openFrameworkEditor("version", "新版本")}>创建新版本</button></div>}
         />
         {versionSaved && <div className="success-banner"><span>✓</span><p><strong>{versionName} 草案已保存</strong>旧版本与历史评估保持不变。</p></div>}
         <section className="card framework-manifesto">
@@ -1633,6 +1632,24 @@ export function ThoughtLabApp() {
         </header>
         <main className={`page-content page-${activePage}`}>{renderPage()}</main>
       </div>
+
+      {helpOpen && (
+        <div className="modal-backdrop help-backdrop" role="presentation">
+          <section className="card help-assistant" role="dialog" aria-modal="true" aria-label="序理使用指南">
+            <button className="modal-close" aria-label="关闭指南" onClick={() => setHelpOpen(false)}>×</button>
+            <aside className="help-nav">
+              <div className="guide-avatar">引</div><strong>序理引路人</strong><small>从一则材料，到一座会生长的思维基座</small>
+              {[['start', '第一次来'], ['import', '导入与归位'], ['analyze', '用体系分析'], ['evolve', '补丁与版本']].map(([id, label]) => <button key={id} className={helpTopic === id ? "active" : ""} onClick={() => setHelpTopic(id as typeof helpTopic)}>{label}<span>→</span></button>)}
+            </aside>
+            <div className="help-content">
+              {helpTopic === "start" && <><span className="eyebrow">欢迎来到序理</span><h2>这里不是资料仓库，而是你的思维操作系统。</h2><p>最简单的使用顺序是：在「拾穗门」带回新知识，在「观星台」检点它如何融入体系，在「观照室」用体系解决真实问题，最后到「年轮志」看见整座基座怎样长成。</p><div className="guide-map">{[["观星台", "看全貌"], ["拾穗门", "收材料"], ["观照室", "解问题"], ["年轮志", "看演化"], ["行思录", "留实践"], ["磨砺场", "做训练"]].map(([name, note]) => <div key={name}><strong>{name}</strong><span>{note}</span></div>)}</div><div className="guide-tip"><strong>第一次使用建议</strong><p>先不要急着修改体系。导入一段你最近读到、真正觉得有价值的内容，让系统先解释它与现有基座的关系。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("knowledge"); }}>开始第一次导入 →</button></>}
+              {helpTopic === "import" && <><span className="eyebrow">拾穗门指南</span><h2>让出处、原文与当下想法一起留下。</h2><ol className="guide-steps"><li><strong>选择来源</strong><p>直接输入、DOCX、PPTX、PDF、Markdown 或外部链接均可。旧 DOC/PPT 会保存原文件，但建议转换为新版格式以提取文字。</p></li><li><strong>检查实时预览</strong><p>Markdown、表格、任务列表和公式会即时渲染，例如行内公式 <code>$P(A|B)$</code> 或块公式 <code>$$E=mc^2$$</code>。</p></li><li><strong>写下札记</strong><p>不要只记录“它说了什么”，也写“它为什么重要、可能改变什么”。</p></li><li><strong>决定归宿</strong><p>重复内容做补丁；真正新增的维度进入共创；尚不确定的先暂存。</p></li></ol><div className="guide-example"><small>示例</small><strong>《批判性思维工具》关于假设的段落</strong><p>系统可能归入「假设 × 深度」，建议作为“识别隐含前提”的方法补丁，而不是立即创建新标准。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("knowledge"); }}>去拾穗门 →</button></>}
+              {helpTopic === "analyze" && <><span className="eyebrow">观照室指南</span><h2>先整体看，再选择一束更聚焦的光。</h2><p>输入决策、论证、阅读笔记或困惑。DeepSeek 会严格使用当前基座：先还原八个思维元素，再只评价有文本证据的“元素 × 标准”组合。</p><div className="guide-example"><small>完整例子</small><strong>问题：我是否应该更换研究方向？</strong><p>先选择“整体分析”，看目的、信息、假设与后果是否完整；再选择“假设”，重点追问“新方向更有价值”依赖哪些尚未验证的前提。</p></div><div className="guide-tip"><strong>怎样读结果</strong><p>“暂不评价”并不是低分，而是原文没有足够证据。最有价值的动作通常是回答系统给出的三条启发式问题。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("analyze"); }}>去观照室 →</button></>}
+              {helpTopic === "evolve" && <><span className="eyebrow">演化规则</span><h2>小变化留下补丁，大变化形成版本。</h2><div className="evolution-rule"><div><span>PATCH</span><strong>补丁</strong><p>补充定义、例子、反例、问题模板或使用说明，不改变体系主干。</p></div><div><span>VERSION</span><strong>版本</strong><p>新增元素、标准、关系或能力映射，会改变未来分析方式。</p></div><div><span>HOLD</span><strong>暂存</strong><p>有启发但证据不足，保留出处与札记，等待以后重新检点。</p></div></div><p>每次正式改版都保留旧版本；历史记录继续使用当时的分析基座，不会被新版本回写。</p><button className="primary-button" onClick={() => { setHelpOpen(false); go("history"); }}>查看年轮志 →</button></>}
+            </div>
+          </section>
+        </div>
+      )}
 
       {utilityPanel && <div className="modal-backdrop" role="presentation"><section className="framework-modal card utility-modal"><button className="modal-close" aria-label="关闭" onClick={() => setUtilityPanel(null)}>×</button>{utilityPanel === "settings" ? <><span className="eyebrow">系统设置</span><h2>模型与资料安全</h2><div className="settings-row"><span>分析模型</span><strong>DeepSeek V4 Flash</strong></div><div className="settings-row"><span>密钥保存</span><strong>仅服务端加密环境</strong></div><div className="settings-row"><span>数据原则</span><strong>原文先保存，模型结果可追溯</strong></div><p>密钥不会出现在浏览器或源码中。建议定期在 DeepSeek 控制台轮换密钥。</p></> : <><span className="eyebrow">通知</span><h2>今日没有必须处理的事项</h2><div className="notification-item"><strong>思维基座已接入 DeepSeek</strong><p>新材料归位和文本分析将使用当前正式体系作为约束。</p></div><div className="notification-item"><strong>候选材料等待检点</strong><p>进入拾穗门可查看暂存内容并决定是否收录。</p></div></>}</section></div>}
 

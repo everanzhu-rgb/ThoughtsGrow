@@ -16,9 +16,16 @@
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",
+    "jszip": "^3.10.1",
+    "katex": "^0.18.1",
     "next": "16.2.6",
+    "pdfjs-dist": "^6.1.200",
     "react": "19.2.6",
-    "react-dom": "19.2.6"
+    "react-dom": "19.2.6",
+    "react-markdown": "^10.1.0",
+    "rehype-katex": "^7.0.1",
+    "remark-gfm": "^4.0.1",
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",

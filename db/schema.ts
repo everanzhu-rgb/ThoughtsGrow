@@ -81,3 +81,15 @@ export const knowledgeImports = sqliteTable("knowledge_imports", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const sourceMaterials = sqliteTable("source_materials", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  name: text("name").notNull(),
+  sourceUrl: text("source_url"),
+  objectKey: text("object_key"),
+  mimeType: text("mime_type").notNull().default("text/plain"),
+  sizeBytes: integer("size_bytes").notNull().default(0),
+  extractedText: text("extracted_text").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

@@ -88,10 +88,22 @@ export async function ensureSchema() {
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS source_materials (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      name TEXT NOT NULL,
+      source_url TEXT,
+      object_key TEXT,
+      mime_type TEXT NOT NULL DEFAULT 'text/plain',
+      size_bytes INTEGER NOT NULL DEFAULT 0,
+      extracted_text TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare("CREATE INDEX IF NOT EXISTS thinking_records_created_idx ON thinking_records(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS analysis_record_idx ON analysis_versions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS conversation_record_idx ON conversation_turns(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS training_record_idx ON training_sessions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS knowledge_imports_created_idx ON knowledge_imports(created_at)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS source_materials_created_idx ON source_materials(created_at)"),
   ]);
 }
