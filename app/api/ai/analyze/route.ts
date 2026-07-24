@@ -8,7 +8,7 @@ type AnalysisResult = {
   focusTitle: string;
   focusFinding: string;
   evidence: string;
-  questions: string[];
+  questions: Array<{ question: string; rationale: string; basis: string }>;
   structure: Array<{ name: string; text: string }>;
   assessments: Array<{ element: string; standard: string; finding: string; evidence: string; confidence: "高" | "中" | "低" | "暂不评价" }>;
 };
@@ -34,7 +34,11 @@ function normalizeResult(value: unknown): AnalysisResult {
     focusTitle: String(raw.focusTitle || "专题分析"),
     focusFinding: String(raw.focusFinding || "暂未形成明确判断。"),
     evidence: String(raw.evidence || "原文证据不足"),
-    questions: strings(raw.questions),
+    questions: (Array.isArray(raw.questions) ? raw.questions : []).map((item) => {
+      if (typeof item === "string") return { question: item, rationale: "用于补足当前文本中尚未展开的关键环节。", basis: "当前专题与原文证据" };
+      const entry = item && typeof item === "object" ? item as Record<string, unknown> : {};
+      return { question: String(entry.question || "还可以怎样检验这个判断？"), rationale: String(entry.rationale || "用于补足当前推理链条。"), basis: String(entry.basis || "当前框架与原文证据") };
+    }).slice(0, 4),
     structure: structure.map((item) => {
       const entry = item && typeof item === "object" ? item as Record<string, unknown> : {};
       return { name: String(entry.name || "未命名元素"), text: String(entry.text || "原文未提供") };
@@ -61,7 +65,7 @@ export async function POST(request: Request) {
     const rawResult = await deepSeekJson<unknown>([
       {
         role: "system",
-        content: `${frameworkBrief}\n你是严谨的中文思维分析师。只能依据用户原文，不进行人格判断。必须输出 JSON，字段为 overview、strengths、gaps、nextStep、focusTitle、focusFinding、evidence、questions、structure、assessments。strengths/gaps/questions 各 2-4 条；structure 使用八个思维元素，缺失内容明确写“原文未提供”；assessments 只保留有证据的 3-6 个组合。`,
+        content: `${frameworkBrief}\n你是严谨的中文思维分析师。只能依据用户原文，不进行人格判断。必须输出 JSON，字段为 overview、strengths、gaps、nextStep、focusTitle、focusFinding、evidence、questions、structure、assessments。strengths/gaps 各 2-4 条；questions 为 2-4 个对象，每个对象必须包含 question（启发式问题）、rationale（完整解释如何从原文缺口、所选元素/标准和预期认知动作推导出这个问题，以及为何不问更宽泛的问题）、basis（明确列出所依据的原文证据与框架维度）。structure 使用八个思维元素，缺失内容明确写“原文未提供”；assessments 只保留有证据的 3-6 个组合。`,
       },
       { role: "user", content: `场景：${payload.scene || "未指定"}\n重点专题：${focus}\n待分析文本：\n${text}` },
     ]);

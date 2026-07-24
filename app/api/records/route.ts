@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { ensureSchema, getDb } from "@/db";
 import { analysisVersions, conversationTurns, thinkingRecords, trainingSessions } from "@/db/schema";
 
@@ -38,11 +38,15 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   try {
     await ensureSchema();
-    const payload = (await request.json()) as { id?: string; title?: string; content?: string; scene?: string; action?: "restore" };
+    const payload = (await request.json()) as { id?: string; title?: string; content?: string; scene?: string; source?: string; sourceUrl?: string; note?: string; tags?: string[]; importance?: number; annotations?: unknown[]; reportContent?: string; action?: "restore" | "review"; reviewGrade?: "again" | "hard" | "good" | "easy" };
     if (!payload.id) return Response.json({ error: "缺少记录编号" }, { status: 400 });
+    const reviewIntervals = { again: 1, hard: 3, good: 7, easy: 21 };
+    const reviewDays = reviewIntervals[payload.reviewGrade || "good"];
     const values = payload.action === "restore"
       ? { deletedAt: null, deleteAfter: null, updatedAt: new Date().toISOString() }
-      : { title: payload.title?.trim(), content: payload.content?.trim(), scene: payload.scene?.trim(), updatedAt: new Date().toISOString() };
+      : payload.action === "review"
+        ? { nextReviewAt: new Date(Date.now() + reviewDays * 86400000).toISOString(), reviewCount: sql`${thinkingRecords.reviewCount} + 1`, updatedAt: new Date().toISOString() }
+        : { title: payload.title?.trim(), content: payload.content?.trim(), scene: payload.scene?.trim(), source: payload.source?.trim(), sourceUrl: payload.sourceUrl?.trim(), note: payload.note?.trim(), ...(payload.tags ? { tagsJson: JSON.stringify(payload.tags.slice(0, 20)) } : {}), ...(payload.importance ? { importance: Math.max(1, Math.min(5, payload.importance)) } : {}), ...(payload.annotations ? { annotationsJson: JSON.stringify(payload.annotations) } : {}), ...(payload.reportContent !== undefined ? { reportContent: payload.reportContent } : {}), updatedAt: new Date().toISOString() };
     const [record] = await getDb().update(thinkingRecords).set(values).where(eq(thinkingRecords.id, payload.id)).returning();
     return Response.json({ record });
   } catch (error) {
@@ -82,6 +86,11 @@ export async function POST(request: Request) {
       content?: string;
       scene?: string;
       mode?: string;
+      source?: string;
+      sourceUrl?: string;
+      note?: string;
+      tags?: string[];
+      importance?: number;
     };
     const content = payload.content?.trim() ?? "";
     if (content.length < 10) {
@@ -104,6 +113,12 @@ export async function POST(request: Request) {
         scene: payload.scene || "日常思考",
         mode: payload.mode || "record",
         status: "saved",
+        source: payload.source?.trim() || "",
+        sourceUrl: payload.sourceUrl?.trim() || "",
+        note: payload.note?.trim() || "",
+        tagsJson: JSON.stringify((payload.tags || []).slice(0, 20)),
+        importance: Math.max(1, Math.min(5, payload.importance || 3)),
+        nextReviewAt: new Date(Date.now() + 86400000).toISOString(),
       })
       .returning();
 

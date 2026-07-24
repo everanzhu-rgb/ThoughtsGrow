@@ -14,7 +14,7 @@ const quotes: Quote[] = [
   { quote: "思考的锋芒，不在于迅速反驳，而在于允许事实改变自己。", translation: "", author: "序理", source: "《序理》每日札记 · 原创", language: "zh" },
 ];
 
-type HomeTarget = "framework" | "knowledge" | "analyze" | "history" | "records" | "growth" | "topics" | "new";
+type HomeTarget = "framework" | "knowledge" | "analyze" | "history" | "records" | "growth" | "topics" | "new" | "cabinet";
 
 export function DynamicHome({ records, imports, topicCount, versionCount, onNavigate }: {
   records: Array<{ id: string; title: string; createdAt: string }>;
@@ -60,7 +60,7 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
 
   const portals: Array<{ page: HomeTarget; code: string; title: string; note: string }> = [
     { page: "framework", code: "01", title: "观星台", note: "看见体系全貌" },
-    { page: "knowledge", code: "02", title: "拾穗门", note: "带回新的思想" },
+    { page: "cabinet", code: "02", title: "拾光橱", note: "陈列喜欢的句与图" },
     { page: "analyze", code: "03", title: "观照室", note: "用体系照见问题" },
     { page: "records", code: "04", title: "行思录", note: "回到真实思考" },
     { page: "growth", code: "05", title: "生长谱", note: "观察长期证据" },

@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build contains the incremental thinking library", async () => {
-  const [layout, page, app, composer, home, map, heatmap, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, aiApi, deepseek, hosting, migration, cinematicMigration] = await Promise.all([
+  const [layout, page, app, composer, home, map, heatmap, cabinet, training, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, mergeApi, cabinetApi, digestApi, aiApi, deepseek, hosting, migration, cinematicMigration, unifiedMigration] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
@@ -11,17 +11,23 @@ test("build contains the incremental thinking library", async () => {
     readFile(new URL("../app/components/DynamicHome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FrameworkMindMap.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ActivityHeatmap.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/CabinetPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/TrainingHub.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/activity/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/trash/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/knowledge/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/materials/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/materials/file/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/framework-layout/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/records/merge/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/cabinet/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/training-digest/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deepseek.ts", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_furry_lorna_dane.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_cinematic_atlas.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0005_unified_thought_archive.sql", import.meta.url), "utf8"),
     access(new URL("../dist/server/index.js", import.meta.url)),
     access(new URL("../public/og.png", import.meta.url)),
     access(new URL("../public/home-cinematic.webp", import.meta.url)),
@@ -32,7 +38,10 @@ test("build contains the incremental thinking library", async () => {
   assert.match(layout, /og\.png/);
   assert.match(page, /ThoughtLabApp/);
   assert.match(app, /观星台 · 体系全貌/);
-  assert.match(app, /拾穗门 · 知识导入/);
+  assert.match(app, /思维记录与知识输入/);
+  assert.match(app, /仅保存，先到这里/);
+  assert.match(app, /送入观照室/);
+  assert.match(app, /标签（逗号分隔）/);
   assert.match(app, /观照室 · 体系分析/);
   assert.match(app, /年轮志 · 版本历史/);
   assert.match(app, /请引路人 · 使用指南/);
@@ -47,6 +56,15 @@ test("build contains the incremental thinking library", async () => {
   assert.match(map, /保存布局/);
   assert.match(layoutApi, /frameworkNodePositions/);
   assert.match(heatmap, /heat-focus/);
+  assert.match(cabinet, /拾光橱/);
+  assert.match(cabinetApi, /inspirationFavorites/);
+  assert.match(training, /记忆复盘/);
+  assert.match(training, /今日三篇/);
+  assert.match(training, /reviewGrade/);
+  assert.match(digestApi, /hacker-news\.firebaseio\.com/);
+  assert.match(digestApi, /export\.arxiv\.org/);
+  assert.match(digestApi, /feeds\.bbci\.co\.uk/);
+  assert.match(mergeApi, /mergedFromJson/);
   assert.match(activityApi, /activityEvents/);
   assert.match(trashApi, /deleteAfter/);
   assert.match(migration, /framework_node_notes/);
@@ -65,8 +83,12 @@ test("build contains the incremental thinking library", async () => {
   assert.match(materialsApi, /\}\)\.FILES/);
   assert.match(hosting, /"r2": "FILES"/);
   assert.match(cinematicMigration, /framework_node_positions/);
+  assert.match(unifiedMigration, /legacy-import-/);
+  assert.match(unifiedMigration, /cabinet_items/);
   assert.match(knowledgeApi, /knowledgeImports/);
   assert.match(aiApi, /deepSeekJson/);
+  assert.match(aiApi, /rationale/);
+  assert.match(aiApi, /basis/);
   assert.match(deepseek, /DEEPSEEK_API_KEY/);
   assert.doesNotMatch(deepseek, /sk-[a-zA-Z0-9]{16,}/);
   assert.doesNotMatch(`${layout}\n${page}\n${app}`, /codex-preview|Your site is taking shape|react-loading-skeleton/i);

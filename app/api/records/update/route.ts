@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   try {
     await ensureSchema();
     const payload = (await request.json()) as {
-      action?: "analysis" | "conversation" | "training";
+      action?: "analysis" | "conversation" | "training" | "review_complete";
       recordId?: string;
       summary?: string;
       primaryIssue?: string;
@@ -26,6 +26,8 @@ export async function POST(request: Request) {
       focusStandard?: string;
       beforeScore?: number;
       afterScore?: number;
+      report?: unknown;
+      reportContent?: string;
     };
     if (!payload.recordId) {
       return Response.json({ error: "缺少记录编号" }, { status: 400 });
@@ -48,6 +50,8 @@ export async function POST(request: Request) {
           status: "analyzed",
           summary: payload.summary || "",
           primaryIssue: payload.primaryIssue || "",
+          analysisReportJson: JSON.stringify(payload.report ?? {}),
+          reportContent: payload.reportContent || "",
           updatedAt: new Date().toISOString(),
         })
         .where(eq(thinkingRecords.id, payload.recordId));
@@ -80,6 +84,10 @@ export async function POST(request: Request) {
           updatedAt: new Date().toISOString(),
         })
         .where(eq(thinkingRecords.id, payload.recordId));
+    }
+
+    if (payload.action === "review_complete") {
+      await db.update(thinkingRecords).set({ status: "reviewed", updatedAt: new Date().toISOString() }).where(eq(thinkingRecords.id, payload.recordId));
     }
 
     return Response.json({ ok: true });

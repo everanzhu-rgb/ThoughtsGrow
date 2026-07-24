@@ -10,6 +10,17 @@ export const thinkingRecords = sqliteTable("thinking_records", {
   status: text("status").notNull().default("saved"),
   summary: text("summary").notNull().default(""),
   primaryIssue: text("primary_issue").notNull().default(""),
+  source: text("source").notNull().default(""),
+  sourceUrl: text("source_url").notNull().default(""),
+  note: text("note").notNull().default(""),
+  tagsJson: text("tags_json").notNull().default("[]"),
+  importance: integer("importance").notNull().default(3),
+  annotationsJson: text("annotations_json").notNull().default("[]"),
+  analysisReportJson: text("analysis_report_json").notNull().default("{}"),
+  reportContent: text("report_content").notNull().default(""),
+  nextReviewAt: text("next_review_at"),
+  reviewCount: integer("review_count").notNull().default(0),
+  mergedFromJson: text("merged_from_json").notNull().default("[]"),
   frameworkVersion: text("framework_version")
     .notNull()
     .default("Critical Thinking Base V1.0"),
@@ -129,4 +140,15 @@ export const activityEvents = sqliteTable("activity_events", {
   kind: text("kind").notNull(),
   summary: text("summary").notNull().default(""),
   occurredAt: text("occurred_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const cabinetItems = sqliteTable("cabinet_items", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull().default("quote"),
+  title: text("title").notNull().default(""),
+  content: text("content").notNull().default(""),
+  source: text("source").notNull().default(""),
+  imageUrl: text("image_url").notNull().default(""),
+  note: text("note").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
