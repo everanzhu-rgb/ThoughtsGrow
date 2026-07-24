@@ -27,7 +27,9 @@ export async function ensureSchema() {
       primary_issue TEXT NOT NULL DEFAULT '',
       framework_version TEXT NOT NULL DEFAULT 'Critical Thinking Base V1.0',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      delete_after TEXT
     )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS analysis_versions (
       id TEXT PRIMARY KEY,
@@ -86,7 +88,9 @@ export async function ensureSchema() {
       analysis_json TEXT NOT NULL DEFAULT '{}',
       disposition TEXT NOT NULL DEFAULT 'pending',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      deleted_at TEXT,
+      delete_after TEXT
     )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS source_materials (
       id TEXT PRIMARY KEY,
@@ -99,11 +103,34 @@ export async function ensureSchema() {
       extracted_text TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS inspiration_favorites (
+      id TEXT PRIMARY KEY,
+      quote TEXT NOT NULL,
+      author TEXT NOT NULL DEFAULT '',
+      language TEXT NOT NULL DEFAULT 'zh',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS framework_node_notes (
+      id TEXT PRIMARY KEY,
+      node_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      content TEXT NOT NULL DEFAULT '',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS activity_events (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      occurred_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare("CREATE INDEX IF NOT EXISTS thinking_records_created_idx ON thinking_records(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS analysis_record_idx ON analysis_versions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS conversation_record_idx ON conversation_turns(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS training_record_idx ON training_sessions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS knowledge_imports_created_idx ON knowledge_imports(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS source_materials_created_idx ON source_materials(created_at)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS framework_node_notes_node_idx ON framework_node_notes(node_id)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS activity_events_occurred_idx ON activity_events(occurred_at)"),
   ]);
 }

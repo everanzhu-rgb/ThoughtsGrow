@@ -1,13 +1,29 @@
-import { desc } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt } from "drizzle-orm";
 import { ensureSchema, getDb } from "@/db";
-import { thinkingRecords } from "@/db/schema";
+import { analysisVersions, conversationTurns, thinkingRecords, trainingSessions } from "@/db/schema";
 
-export async function GET() {
+async function purgeExpired() {
+  const db = getDb();
+  const expired = await db.select({ id: thinkingRecords.id }).from(thinkingRecords).where(and(isNotNull(thinkingRecords.deleteAfter), lt(thinkingRecords.deleteAfter, new Date().toISOString())));
+  for (const record of expired) {
+    await Promise.all([
+      db.delete(analysisVersions).where(eq(analysisVersions.recordId, record.id)),
+      db.delete(conversationTurns).where(eq(conversationTurns.recordId, record.id)),
+      db.delete(trainingSessions).where(eq(trainingSessions.recordId, record.id)),
+    ]);
+    await db.delete(thinkingRecords).where(eq(thinkingRecords.id, record.id));
+  }
+}
+
+export async function GET(request: Request) {
   try {
     await ensureSchema();
+    await purgeExpired();
+    const trash = new URL(request.url).searchParams.get("trash") === "1";
     const records = await getDb()
       .select()
       .from(thinkingRecords)
+      .where(trash ? isNotNull(thinkingRecords.deletedAt) : isNull(thinkingRecords.deletedAt))
       .orderBy(desc(thinkingRecords.createdAt))
       .limit(100);
     return Response.json({ records });
@@ -16,6 +32,45 @@ export async function GET() {
       { error: error instanceof Error ? error.message : "读取记录失败" },
       { status: 500 },
     );
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    await ensureSchema();
+    const payload = (await request.json()) as { id?: string; title?: string; content?: string; scene?: string; action?: "restore" };
+    if (!payload.id) return Response.json({ error: "缺少记录编号" }, { status: 400 });
+    const values = payload.action === "restore"
+      ? { deletedAt: null, deleteAfter: null, updatedAt: new Date().toISOString() }
+      : { title: payload.title?.trim(), content: payload.content?.trim(), scene: payload.scene?.trim(), updatedAt: new Date().toISOString() };
+    const [record] = await getDb().update(thinkingRecords).set(values).where(eq(thinkingRecords.id, payload.id)).returning();
+    return Response.json({ record });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "更新记录失败" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureSchema();
+    const payload = (await request.json()) as { id?: string; permanent?: boolean };
+    if (!payload.id) return Response.json({ error: "缺少记录编号" }, { status: 400 });
+    if (payload.permanent) {
+      const db = getDb();
+      await Promise.all([
+        db.delete(analysisVersions).where(eq(analysisVersions.recordId, payload.id)),
+        db.delete(conversationTurns).where(eq(conversationTurns.recordId, payload.id)),
+        db.delete(trainingSessions).where(eq(trainingSessions.recordId, payload.id)),
+      ]);
+      await db.delete(thinkingRecords).where(eq(thinkingRecords.id, payload.id));
+    } else {
+      const now = new Date();
+      const deleteAfter = new Date(now.getTime() + 30 * 86400000).toISOString();
+      await getDb().update(thinkingRecords).set({ deletedAt: now.toISOString(), deleteAfter, updatedAt: now.toISOString() }).where(eq(thinkingRecords.id, payload.id));
+    }
+    return Response.json({ ok: true });
+  } catch (error) {
+    return Response.json({ error: error instanceof Error ? error.message : "删除记录失败" }, { status: 500 });
   }
 }
 

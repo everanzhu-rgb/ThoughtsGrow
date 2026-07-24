@@ -3,16 +3,21 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build contains the incremental thinking library", async () => {
-  const [layout, page, app, composer, knowledgeApi, materialsApi, aiApi, deepseek, hosting] = await Promise.all([
+  const [layout, page, app, composer, home, map, activityApi, trashApi, knowledgeApi, materialsApi, aiApi, deepseek, hosting, migration] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MarkdownComposer.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DynamicHome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/FrameworkMindMap.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/activity/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/trash/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/knowledge/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/materials/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deepseek.ts", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0003_furry_lorna_dane.sql", import.meta.url), "utf8"),
     access(new URL("../dist/server/index.js", import.meta.url)),
     access(new URL("../public/og.png", import.meta.url)),
   ]);
@@ -26,12 +31,22 @@ test("build contains the incremental thinking library", async () => {
   assert.match(app, /观照室 · 体系分析/);
   assert.match(app, /年轮志 · 版本历史/);
   assert.match(app, /请引路人 · 使用指南/);
+  assert.match(app, /归航页 · Home/);
+  assert.match(app, /归藏处 · 回收站/);
+  assert.match(home, /快速收藏/);
+  assert.match(map, /滚轮缩放/);
+  assert.match(activityApi, /activityEvents/);
+  assert.match(trashApi, /deleteAfter/);
+  assert.match(migration, /framework_node_notes/);
   assert.match(app, /MarkdownComposer/);
   assert.match(composer, /ReactMarkdown/);
   assert.match(composer, /remarkMath/);
   assert.match(composer, /pdfjs-dist/);
   assert.match(composer, /word\/document\.xml/);
+  assert.match(composer, /所见即所得/);
   assert.match(materialsApi, /sourceMaterials/);
+  assert.match(materialsApi, /r\.jina\.ai/);
+  assert.match(materialsApi, /summaryZh/);
   assert.match(materialsApi, /\}\)\.FILES/);
   assert.match(hosting, /"r2": "FILES"/);
   assert.match(knowledgeApi, /knowledgeImports/);

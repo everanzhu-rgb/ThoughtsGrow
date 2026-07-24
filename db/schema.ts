@@ -15,6 +15,8 @@ export const thinkingRecords = sqliteTable("thinking_records", {
     .default("Critical Thinking Base V1.0"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  deletedAt: text("deleted_at"),
+  deleteAfter: text("delete_after"),
 });
 
 export const analysisVersions = sqliteTable("analysis_versions", {
@@ -80,6 +82,8 @@ export const knowledgeImports = sqliteTable("knowledge_imports", {
   disposition: text("disposition").notNull().default("pending"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  deletedAt: text("deleted_at"),
+  deleteAfter: text("delete_after"),
 });
 
 export const sourceMaterials = sqliteTable("source_materials", {
@@ -92,4 +96,28 @@ export const sourceMaterials = sqliteTable("source_materials", {
   sizeBytes: integer("size_bytes").notNull().default(0),
   extractedText: text("extracted_text").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const inspirationFavorites = sqliteTable("inspiration_favorites", {
+  id: text("id").primaryKey(),
+  quote: text("quote").notNull(),
+  author: text("author").notNull().default(""),
+  language: text("language").notNull().default("zh"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const frameworkNodeNotes = sqliteTable("framework_node_notes", {
+  id: text("id").primaryKey(),
+  nodeId: text("node_id").notNull(),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const activityEvents = sqliteTable("activity_events", {
+  id: text("id").primaryKey(),
+  kind: text("kind").notNull(),
+  summary: text("summary").notNull().default(""),
+  occurredAt: text("occurred_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

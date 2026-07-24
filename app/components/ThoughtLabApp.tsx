@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { MarkdownComposer } from "./MarkdownComposer";
+import { DynamicHome } from "./DynamicHome";
+import { FrameworkMindMap } from "./FrameworkMindMap";
+import { ActivityHeatmap } from "./ActivityHeatmap";
 
 type PageKey =
   | "dashboard"
@@ -12,7 +15,8 @@ type PageKey =
   | "knowledge"
   | "framework"
   | "history"
-  | "analyze";
+  | "analyze"
+  | "trash";
 
 type FlowPhase =
   | "compose"
@@ -41,6 +45,9 @@ type StoredRecord = {
   primaryIssue: string;
   frameworkVersion: string;
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  deleteAfter?: string | null;
 };
 
 type FrameworkVersion = {
@@ -84,9 +91,13 @@ type KnowledgeImport = {
   analysisJson: string;
   disposition: string;
   createdAt: string;
+  updatedAt?: string;
+  deletedAt?: string | null;
+  deleteAfter?: string | null;
 };
 
 const navItems: Array<{ id: PageKey; label: string; symbol: string }> = [
+  { id: "dashboard", label: "归航页 · Home", symbol: "⌂" },
   { id: "framework", label: "观星台 · 体系全貌", symbol: "✦" },
   { id: "knowledge", label: "拾穗门 · 知识导入", symbol: "◇" },
   { id: "analyze", label: "观照室 · 体系分析", symbol: "◉" },
@@ -95,6 +106,7 @@ const navItems: Array<{ id: PageKey; label: string; symbol: string }> = [
   { id: "growth", label: "生长谱 · 成长分析", symbol: "↗" },
   { id: "topics", label: "磨砺场 · 训练专题", symbol: "◎" },
   { id: "new", label: "落笔 · 新建记录", symbol: "+" },
+  { id: "trash", label: "归藏处 · 回收站", symbol: "⌫" },
 ];
 
 const qualityScores = [
@@ -339,39 +351,44 @@ function RadarChart() {
   );
 }
 
-function GrowthChart({ large = false }: { large?: boolean }) {
+function GrowthChart({ large = false, range = 30, byDay = {} }: { large?: boolean; range?: number; byDay?: Record<string, Array<{ kind: string; summary: string; at: string }>> }) {
+  const dates = Array.from({ length: range }, (_, index) => {
+    const date = new Date(); date.setHours(0, 0, 0, 0); date.setDate(date.getDate() - (range - 1 - index)); return date;
+  });
+  const bucketSize = Math.max(1, Math.ceil(range / 12));
+  let evidence = 0;
+  const points = dates.filter((_, index) => index % bucketSize === 0 || index === dates.length - 1).map((date, index, list) => {
+    const start = Math.min(index * bucketSize, dates.length - 1);
+    const end = Math.min(start + bucketSize, dates.length);
+    const activity = dates.slice(start, end).reduce((sum, item) => sum + (byDay[item.toISOString().slice(0, 10)]?.length || 0), 0);
+    evidence += Math.min(3, activity);
+    const maturity = Math.min(3.55, 0.55 + Math.log2(1 + evidence) * 0.68);
+    const x = list.length === 1 ? 360 : 12 + index * (696 / (list.length - 1));
+    const y = 205 - maturity * 48;
+    return { x, y, activity, date };
+  });
+  const pointString = points.map((point) => `${point.x},${point.y}`).join(" ");
+  const areaString = `12,214 ${pointString} 708,214`;
+  const labelDates = [dates[0], dates[Math.floor((dates.length - 1) / 2)], dates[dates.length - 1]];
   return (
     <div className={`growth-chart ${large ? "growth-chart-large" : ""}`}>
       <div className="chart-ylabels" aria-hidden="true">
-        <span>90</span>
-        <span>75</span>
-        <span>60</span>
-        <span>45</span>
+        <span>稳定</span>
+        <span>成形</span>
+        <span>萌芽</span>
+        <span>起点</span>
       </div>
-      <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img" aria-label="过去三个月稳定能力与训练后即时趋势">
+      <svg viewBox="0 0 720 230" preserveAspectRatio="none" role="img" aria-label={`最近 ${range} 天的证据成熟度轨迹`}>
         <line x1="0" y1="28" x2="720" y2="28" className="grid-line" />
         <line x1="0" y1="82" x2="720" y2="82" className="grid-line" />
         <line x1="0" y1="136" x2="720" y2="136" className="grid-line" />
         <line x1="0" y1="190" x2="720" y2="190" className="grid-line" />
-        <path
-          d="M12 170 C75 162, 86 150, 140 154 S238 128, 300 136 S405 96, 470 103 S560 78, 620 88"
-          className="chart-area"
-        />
-        <path
-          d="M12 170 C75 162, 86 150, 140 154 S238 128, 300 136 S405 96, 470 103 S560 78, 620 88"
-          className="stable-line"
-        />
-        <path d="M620 88 C654 70, 677 44, 708 55" className="instant-line" />
-        {[["12", "170"], ["140", "154"], ["300", "136"], ["470", "103"], ["620", "88"]].map(
-          ([cx, cy]) => <circle key={cx} cx={cx} cy={cy} r="5" className="stable-point" />,
-        )}
-        <circle cx="708" cy="55" r="6" className="instant-point" />
+        <polygon points={areaString} className="chart-area" />
+        <polyline points={pointString} className="stable-line" />
+        {points.map((point) => <circle key={`${point.x}-${point.date.toISOString()}`} cx={point.x} cy={point.y} r={point.activity ? "5" : "3"} className="stable-point" />)}
       </svg>
       <div className="chart-xlabels">
-        <span>5 月</span>
-        <span>6 月</span>
-        <span>7 月</span>
-        <span>今天</span>
+        {labelDates.map((date, index) => <span key={index}>{index === labelDates.length - 1 ? "今天" : date.toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}</span>)}
       </div>
     </div>
   );
@@ -410,7 +427,7 @@ function EmptyScore() {
 }
 
 export function ThoughtLabApp() {
-  const [activePage, setActivePage] = useState<PageKey>("framework");
+  const [activePage, setActivePage] = useState<PageKey>("dashboard");
   const [records, setRecords] = useState<StoredRecord[]>(sampleRecords);
   const [selectedRecord, setSelectedRecord] = useState<StoredRecord | null>(null);
   const [flowPhase, setFlowPhase] = useState<FlowPhase>("compose");
@@ -449,7 +466,7 @@ export function ThoughtLabApp() {
   const [selectedTopicName, setSelectedTopicName] = useState("");
   const [newTopicName, setNewTopicName] = useState("");
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "settings" | null>(null);
-  const [growthRange, setGrowthRange] = useState("90");
+  const [growthRange, setGrowthRange] = useState("30");
   const [customTopics, setCustomTopics] = useState<Array<(typeof topics)[number] & { id?: string }>>([]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<"start" | "import" | "analyze" | "evolve">("start");
@@ -464,19 +481,27 @@ export function ThoughtLabApp() {
   const [versionNote, setVersionNote] = useState("增加对不确定性表达的观察说明。");
   const [versionSaved, setVersionSaved] = useState(false);
   const [frameworkSaveError, setFrameworkSaveError] = useState("");
+  const [activityByDay, setActivityByDay] = useState<Record<string, Array<{ kind: string; summary: string; at: string }>>>({});
+  const [editingRecord, setEditingRecord] = useState<StoredRecord | null>(null);
+  const [editingImport, setEditingImport] = useState<KnowledgeImport | null>(null);
+  const [trashRecords, setTrashRecords] = useState<StoredRecord[]>([]);
+  const [trashImports, setTrashImports] = useState<KnowledgeImport[]>([]);
+  const [timeAnchor] = useState(() => Date.now());
 
   useEffect(() => {
     fetch("/api/records")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { records?: StoredRecord[] }) => {
-        if (data.records?.length) {
-          const ids = new Set(data.records.map((item) => item.id));
-          setRecords([...data.records, ...sampleRecords.filter((item) => !ids.has(item.id))]);
-        }
+        if (data.records) setRecords(data.records);
       })
       .catch(() => {
         // The starter examples remain visible if local persistence is still warming up.
       });
+  }, []);
+
+  useEffect(() => {
+    void postJson("/api/activity", { kind: "visit", summary: "打开了序理" });
+    fetch("/api/activity?days=60").then((response) => response.ok ? response.json() : null).then((data) => setActivityByDay(data?.byDay ?? {})).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -512,6 +537,7 @@ export function ThoughtLabApp() {
   const go = (page: PageKey) => {
     setActivePage(page);
     if (page !== "records") setSelectedRecord(null);
+    if (page === "trash") void loadTrash();
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -776,8 +802,59 @@ export function ThoughtLabApp() {
     setTopicDialog(null);
   }
 
+  async function saveRecordEdit() {
+    if (!editingRecord || editingRecord.content.trim().length < 10) return;
+    const response = await fetch("/api/records", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingRecord.id, title: editingRecord.title, content: editingRecord.content, scene: editingRecord.scene }) });
+    const data = await response.json();
+    if (!response.ok || !data.record) return;
+    setRecords((items) => items.map((item) => item.id === data.record.id ? data.record : item));
+    if (selectedRecord?.id === data.record.id) setSelectedRecord(data.record);
+    setEditingRecord(null);
+  }
+
+  async function moveRecordToTrash(record: StoredRecord) {
+    const response = await fetch("/api/records", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: record.id }) });
+    if (!response.ok) return;
+    setRecords((items) => items.filter((item) => item.id !== record.id));
+    if (selectedRecord?.id === record.id) setSelectedRecord(null);
+  }
+
+  async function saveImportEdit() {
+    if (!editingImport || !editingImport.source.trim() || editingImport.content.trim().length < 10) return;
+    const response = await fetch("/api/knowledge", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editingImport.id, content: editingImport.content, source: editingImport.source, note: editingImport.note }) });
+    const data = await response.json();
+    if (!response.ok || !data.item) return;
+    setKnowledgeImports((items) => items.map((item) => item.id === data.item.id ? data.item : item));
+    setEditingImport(null);
+  }
+
+  async function moveImportToTrash(item: KnowledgeImport) {
+    const response = await fetch("/api/knowledge", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id }) });
+    if (!response.ok) return;
+    setKnowledgeImports((items) => items.filter((entry) => entry.id !== item.id));
+  }
+
+  async function loadTrash() {
+    const response = await fetch("/api/trash");
+    if (!response.ok) return;
+    const data = await response.json();
+    setTrashRecords(data.records ?? []);
+    setTrashImports(data.imports ?? []);
+  }
+
+  async function trashAction(type: "record" | "import", id: string, action: "restore" | "delete") {
+    const response = await fetch("/api/trash", { method: action === "restore" ? "PATCH" : "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type, id }) });
+    if (!response.ok) return;
+    await loadTrash();
+    if (action === "restore") {
+      const [recordResponse, importResponse] = await Promise.all([fetch("/api/records"), fetch("/api/knowledge")]);
+      if (recordResponse.ok) setRecords((await recordResponse.json()).records ?? []);
+      if (importResponse.ok) setKnowledgeImports((await importResponse.json()).imports ?? []);
+    }
+  }
+
   function renderDashboard() {
-    return (
+    const legacyDashboard = (
       <>
         <div className="dashboard-intro">
           <div>
@@ -950,6 +1027,8 @@ export function ThoughtLabApp() {
         </section>
       </>
     );
+    void legacyDashboard;
+    return <DynamicHome records={records} imports={knowledgeImports} topicCount={topics.length + customTopics.length} versionCount={frameworkVersions.length} onNavigate={go} />;
   }
 
   function renderRecords() {
@@ -963,7 +1042,7 @@ export function ThoughtLabApp() {
               <h1>{selectedRecord.title}</h1>
               <p>{selectedRecord.summary || "这条记录正在等待进一步分析。"}</p>
             </div>
-            <span className="framework-stamp">{selectedRecord.frameworkVersion}</span>
+            <div className="record-detail-actions"><span className="framework-stamp">{selectedRecord.frameworkVersion}</span><button className="ghost-button compact" onClick={() => setEditingRecord({ ...selectedRecord })}>编辑</button><button className="danger-button compact" onClick={() => void moveRecordToTrash(selectedRecord)}>移入回收站</button></div>
           </div>
           <section className="detail-grid">
             <article className="card raw-record-card">
@@ -1012,7 +1091,8 @@ export function ThoughtLabApp() {
         </div>
         <div className="records-list">
           {filteredRecords.map((record) => (
-            <button className="record-card card" key={record.id} onClick={() => setSelectedRecord(record)}>
+            <article className="record-card card" key={record.id}>
+              <button className="record-card-main" onClick={() => setSelectedRecord(record)}>
               <div className="record-date">
                 <strong>{new Date(record.createdAt).getDate()}</strong>
                 <span>{new Intl.DateTimeFormat("zh-CN", { month: "short" }).format(new Date(record.createdAt))}</span>
@@ -1032,7 +1112,9 @@ export function ThoughtLabApp() {
                 </div>
               </div>
               <span className="record-arrow" aria-hidden="true">→</span>
-            </button>
+              </button>
+              <div className="record-quick-actions"><button onClick={() => setEditingRecord({ ...record })}>编辑</button><button onClick={() => void moveRecordToTrash(record)}>删除</button></div>
+            </article>
           ))}
           {filteredRecords.length === 0 && <div className="card empty-search">没有找到符合条件的记录。</div>}
         </div>
@@ -1317,6 +1399,9 @@ export function ThoughtLabApp() {
   }
 
   function renderGrowth() {
+    const metricItems = growthLayer === "standards" ? qualityScores : growthLayer === "elements" ? elements.map((item) => ({ name: item.name, score: item.level, change: item.level > 70 ? 4 : 1 })) : capabilities.map((item) => ({ name: item.name, score: item.score, change: item.delta }));
+    const growthSince = new Date(timeAnchor - (Number(growthRange) - 1) * 86400000).toISOString().slice(0, 10);
+    const activeCount = Object.entries(activityByDay).filter(([date]) => date >= growthSince).reduce((sum, [, items]) => sum + items.length, 0);
     return (
       <>
         <SectionHeader
@@ -1332,21 +1417,25 @@ export function ThoughtLabApp() {
         <section className="card growth-main-card">
           <div className="growth-card-head">
             <div><span className="card-kicker">{growthLayer === "standards" ? "9 项质量标准" : growthLayer === "elements" ? "8 个结构元素" : "5 项高阶能力"}</span><h2>{growthLayer === "standards" ? "清晰性与深度提升最明显" : growthLayer === "elements" ? "主动识别假设仍是主要瓶颈" : "反思能力保持领先"}</h2></div>
-            <select aria-label="时间范围" value={growthRange} onChange={(event) => setGrowthRange(event.target.value)}><option value="30">最近 30 天</option><option value="90">最近 90 天</option><option value="365">最近一年</option></select>
+            <select aria-label="时间范围" value={growthRange} onChange={(event) => setGrowthRange(event.target.value)}><option value="3">最近 3 天</option><option value="7">最近 7 天</option><option value="15">最近 15 天</option><option value="30">最近 30 天</option><option value="60">最近 60 天</option></select>
           </div>
-          <GrowthChart large />
-          <div className="growth-insight"><span>观察</span><p>{growthRange === "30" ? "最近 30 天的记录显示，问题界定开始更加稳定。" : growthRange === "365" ? "年度样本仍在积累；当前改善主要集中在清晰性和深度。" : "最近 90 天，真实记录中的问题界定更加稳定；训练后的即时提升仍需后续证据转为实线。"}</p></div>
+          <GrowthChart large range={Number(growthRange)} byDay={activityByDay} />
+          <div className="growth-insight"><span>观察</span><p>当前视窗覆盖最近 {growthRange} 天。曲线表达的是证据从“萌芽”到“稳定”的成熟过程，不把一次表现武断换算成能力分数；这段时间共留下 {activeCount} 条可追溯痕迹。</p></div>
         </section>
         <section className="metrics-grid">
-          {(growthLayer === "standards" ? qualityScores : growthLayer === "elements" ? elements.map((item) => ({ name: item.name, score: item.level, change: item.level > 70 ? 4 : 1 })) : capabilities.map((item) => ({ name: item.name, score: item.score, change: item.delta }))).map((item) => (
+          {metricItems.map((item, index) => {
+            const stage = item.score >= 78 ? "渐趋稳定" : item.score >= 68 ? "正在成形" : "仍在萌芽";
+            const evidenceCount = Math.max(1, Math.round((item.score - 45) / 8) + (index % 3));
+            return (
             <article className="card metric-card" key={item.name}>
-              <div><span>{item.name}</span><small className="positive">+{item.change}</small></div>
-              <strong>{item.score}</strong>
-              <div className="metric-track"><i style={{ width: `${item.score}%` }} /></div>
-              <p>{item.score >= 78 ? "稳定优势" : item.score >= 68 ? "持续积累" : "当前训练重点"}</p>
+              <div><span>{item.name}</span><small>{evidenceCount} 条证据</small></div>
+              <strong className="stage-label">{stage}</strong>
+              <div className="metric-track"><i style={{ width: `${Math.min(92, 18 + evidenceCount * 10)}%` }} /></div>
+              <p>{item.score >= 78 ? "已在多个情境重复出现" : item.score >= 68 ? "已有趋势，仍需更多场景验证" : "证据较少，适合作为下一步观察点"}</p>
             </article>
-          ))}
+          );})}
         </section>
+        <ActivityHeatmap byDay={activityByDay} days={60} />
       </>
     );
   }
@@ -1393,22 +1482,14 @@ export function ThoughtLabApp() {
     return (
       <>
         <SectionHeader eyebrow="拾穗门 · INGESTION" title="让每一次阅读，都成为体系的新枝叶" note="提交内容、出处与当下札记。系统先判断它与现有基座的关系，再由你决定收录、暂存或共创新版本。" />
-        <section className="knowledge-layout">
-          <article className="card knowledge-input">
-            <span className="card-kicker">一则新材料</span>
-            <h2>把值得留下的思想带回来</h2>
-            <p>书籍、论坛、课程、论文、谈话或你自己的领悟都可以成为材料。</p>
-            <label className="field-label">出处<input value={knowledgeSource} onChange={(event) => setKnowledgeSource(event.target.value)} placeholder="例如：《批判性思维工具》第三章 / 课程链接" /></label>
-            <MarkdownComposer value={knowledgeText} onChange={setKnowledgeText} sourceChanged={setKnowledgeSource} placeholder="粘贴关于思维理论、评估标准或训练方法的内容；也可以上传文件或读取链接…" />
-            <label className="field-label">此刻札记<textarea className="knowledge-note" value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} placeholder="它为什么触动你？你认为它可能改变什么？" /></label>
-            {knowledgeMessage && <p className="form-warning">{knowledgeMessage}</p>}
-            <div><span>{knowledgeText.length} 字</span><button className="primary-button" disabled={knowledgeText.trim().length < 10 || !knowledgeSource.trim()} onClick={analyzeKnowledgeImport}>与现有基座对照 →</button></div>
+        <section className="knowledge-workbench">
+          <article className="card knowledge-editor-panel">
+            <div className="knowledge-editor-head"><div><span className="card-kicker">NEW SOURCE / 一则新材料</span><h2>把思想放在桌面上，边读边整理</h2></div><span>{knowledgeText.length} 字</span></div>
+            <MarkdownComposer value={knowledgeText} onChange={setKnowledgeText} sourceChanged={setKnowledgeSource} placeholder="直接书写，或导入 DOCX、PPTX、PDF、Markdown 与公开网页。输入 ## 后按空格，会自动转为标题。" />
           </article>
-          <aside className="card knowledge-principle">
-            <span className="principle-mark">慎</span>
-            <h3>先理解，后归位；先共创，再改版</h3>
-            <p>任何材料都不会静默改变正式基座。小补丁保留出处，大变化形成版本，每一步都可追溯。</p>
-            <div className="ingestion-steps"><span>01 对照覆盖</span><span>02 寻找归处</span><span>03 决定命运</span></div>
+          <aside className="knowledge-context-panel">
+            <article className="card source-card"><span className="card-kicker">SOURCE</span><label className="field-label">出处<input value={knowledgeSource} onChange={(event) => setKnowledgeSource(event.target.value)} placeholder="书名、章节、作者或原始链接" /></label><label className="field-label">此刻札记<textarea className="knowledge-note" value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} placeholder="它为什么触动你？可能改变什么？" /></label>{knowledgeMessage && <p className="form-warning">{knowledgeMessage}</p>}<button className="primary-button" disabled={knowledgeText.trim().length < 10 || !knowledgeSource.trim()} onClick={analyzeKnowledgeImport}>与现有基座对照 →</button></article>
+            <article className="card knowledge-principle"><span className="principle-mark">慎</span><h3>先理解，后归位</h3><p>材料不会静默改变正式基座。受限网页会尝试增强读取；英文文章会附上中英双语摘要。</p><div className="ingestion-steps"><span>01 读懂原文</span><span>02 对照体系</span><span>03 决定归宿</span></div></article>
           </aside>
         </section>
         {knowledgeAnalyzed && currentImportAnalysis && (
@@ -1427,7 +1508,7 @@ export function ThoughtLabApp() {
           {knowledgeImports.length === 0 ? <p className="empty-ledger">还没有材料。第一则思想，正等你带回来。</p> : knowledgeImports.slice(0, 6).map((item) => {
             const analysis = JSON.parse(item.analysisJson || "{}") as Partial<ImportAnalysis>;
             const status = item.disposition === "patch" ? "已收录补丁" : item.disposition === "material" ? "材料归档" : "等待检点";
-            return <article className="import-row" key={item.id}><div><span>{status}</span><strong>{analysis.target || "待分析"}</strong></div><p>{item.content.slice(0, 72)}{item.content.length > 72 ? "…" : ""}</p><small>{item.source}</small></article>;
+            return <article className="import-row" key={item.id}><div><span>{status}</span><strong>{analysis.target || "待分析"}</strong></div><p>{item.content.slice(0, 96)}{item.content.length > 96 ? "…" : ""}</p><small>{item.source}</small><div className="import-row-actions"><button onClick={() => setEditingImport({ ...item })}>再编辑</button><button onClick={() => void moveImportToTrash(item)}>移入回收站</button></div></article>;
           })}
         </section>
       </>
@@ -1479,6 +1560,19 @@ export function ThoughtLabApp() {
     );
   }
 
+  function renderTrash() {
+    const remaining = (value?: string | null) => value ? Math.max(0, Math.ceil((new Date(value).getTime() - Date.now()) / 86400000)) : 30;
+    return (
+      <>
+        <SectionHeader eyebrow="归藏处 · RECOVERY" title="回收站" note="删除内容会在这里保留 30 天。你可以恢复；到期后系统会自动清理。" action={<button className="ghost-button compact" onClick={() => void loadTrash()}>刷新</button>} />
+        <section className="trash-grid">
+          <article className="card trash-column"><div className="trash-column-head"><span>思维记录</span><strong>{trashRecords.length}</strong></div>{trashRecords.length === 0 ? <p className="empty-ledger">没有待清理的记录。</p> : trashRecords.map((record) => <div className="trash-item" key={record.id}><div><strong>{record.title}</strong><small>{remaining(record.deleteAfter)} 天后自动删除</small></div><p>{record.content.slice(0, 90)}{record.content.length > 90 ? "…" : ""}</p><footer><button onClick={() => void trashAction("record", record.id, "restore")}>恢复</button><button className="danger-text" onClick={() => void trashAction("record", record.id, "delete")}>彻底删除</button></footer></div>)}</article>
+          <article className="card trash-column"><div className="trash-column-head"><span>知识材料</span><strong>{trashImports.length}</strong></div>{trashImports.length === 0 ? <p className="empty-ledger">没有待清理的材料。</p> : trashImports.map((item) => <div className="trash-item" key={item.id}><div><strong>{item.source}</strong><small>{remaining(item.deleteAfter)} 天后自动删除</small></div><p>{item.content.slice(0, 90)}{item.content.length > 90 ? "…" : ""}</p><footer><button onClick={() => void trashAction("import", item.id, "restore")}>恢复</button><button className="danger-text" onClick={() => void trashAction("import", item.id, "delete")}>彻底删除</button></footer></div>)}</article>
+        </section>
+      </>
+    );
+  }
+
   function renderFramework() {
     return (
       <>
@@ -1502,6 +1596,7 @@ export function ThoughtLabApp() {
           </div>
           <p>底层是 8 × 9 的关系模型，但每次只评价情境相关且证据充分的组合。</p>
         </section>
+        <FrameworkMindMap onEdit={(label) => openFrameworkEditor(label === "万象思维基座" || label === "候选与补丁" ? "version" : label.includes("标准") || qualityScores.some((item) => item.name === label) ? "standards" : label.includes("能力") || capabilities.some((item) => item.name === label) ? "capability" : "elements", label)} />
         <section className="framework-two-col">
           <article className="card">
             <SectionHeader eyebrow="Thinking Elements" title="8 个思维元素" note="描述一次思考由什么构成。" action={<button className="text-button" onClick={() => openFrameworkEditor("elements", "思维元素")}>管理元素 →</button>} />
@@ -1588,6 +1683,7 @@ export function ThoughtLabApp() {
       case "framework": return renderFramework();
       case "history": return renderHistory();
       case "analyze": return renderAnalyze();
+      case "trash": return renderTrash();
       default: return renderDashboard();
     }
   };
@@ -1595,7 +1691,7 @@ export function ThoughtLabApp() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <button className="brand" onClick={() => go("framework")} aria-label="返回体系全貌">
+        <button className="brand" onClick={() => go("dashboard")} aria-label="返回首页">
           <span className="brand-mark">序</span>
           <span><strong>序理</strong><small>THOUGHT LAB</small></span>
         </button>
@@ -1652,6 +1748,10 @@ export function ThoughtLabApp() {
       )}
 
       {utilityPanel && <div className="modal-backdrop" role="presentation"><section className="framework-modal card utility-modal"><button className="modal-close" aria-label="关闭" onClick={() => setUtilityPanel(null)}>×</button>{utilityPanel === "settings" ? <><span className="eyebrow">系统设置</span><h2>模型与资料安全</h2><div className="settings-row"><span>分析模型</span><strong>DeepSeek V4 Flash</strong></div><div className="settings-row"><span>密钥保存</span><strong>仅服务端加密环境</strong></div><div className="settings-row"><span>数据原则</span><strong>原文先保存，模型结果可追溯</strong></div><p>密钥不会出现在浏览器或源码中。建议定期在 DeepSeek 控制台轮换密钥。</p></> : <><span className="eyebrow">通知</span><h2>今日没有必须处理的事项</h2><div className="notification-item"><strong>思维基座已接入 DeepSeek</strong><p>新材料归位和文本分析将使用当前正式体系作为约束。</p></div><div className="notification-item"><strong>候选材料等待检点</strong><p>进入拾穗门可查看暂存内容并决定是否收录。</p></div></>}</section></div>}
+
+      {editingRecord && <div className="modal-backdrop" role="presentation"><section className="edit-modal card" role="dialog" aria-modal="true" aria-label="编辑思维记录"><button className="modal-close" aria-label="关闭" onClick={() => setEditingRecord(null)}>×</button><span className="eyebrow">再次打磨</span><h2>编辑思维记录</h2><label className="field-label">标题<input value={editingRecord.title} onChange={(event) => setEditingRecord({ ...editingRecord, title: event.target.value })} /></label><label className="field-label">场景<select value={editingRecord.scene} onChange={(event) => setEditingRecord({ ...editingRecord, scene: event.target.value })}>{sceneOptions.map((item) => <option key={item}>{item}</option>)}</select></label><MarkdownComposer compact value={editingRecord.content} onChange={(content) => setEditingRecord({ ...editingRecord, content })} placeholder="重新梳理这次思考…" /><div className="modal-actions"><button className="ghost-button" onClick={() => setEditingRecord(null)}>取消</button><button className="primary-button" onClick={() => void saveRecordEdit()}>保存修改</button></div></section></div>}
+
+      {editingImport && <div className="modal-backdrop" role="presentation"><section className="edit-modal card" role="dialog" aria-modal="true" aria-label="编辑知识材料"><button className="modal-close" aria-label="关闭" onClick={() => setEditingImport(null)}>×</button><span className="eyebrow">重新检点</span><h2>编辑知识材料</h2><label className="field-label">出处<input value={editingImport.source} onChange={(event) => setEditingImport({ ...editingImport, source: event.target.value })} /></label><MarkdownComposer compact value={editingImport.content} onChange={(content) => setEditingImport({ ...editingImport, content })} placeholder="编辑材料正文…" /><label className="field-label">札记<textarea value={editingImport.note} onChange={(event) => setEditingImport({ ...editingImport, note: event.target.value })} /></label><div className="modal-actions"><button className="ghost-button" onClick={() => setEditingImport(null)}>取消</button><button className="primary-button" onClick={() => void saveImportEdit()}>保存修改</button></div></section></div>}
 
       {topicDialog && (
         <div className="modal-backdrop" role="presentation">
