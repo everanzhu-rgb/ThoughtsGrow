@@ -1042,7 +1042,7 @@ export function ThoughtLabApp() {
               <h1>{selectedRecord.title}</h1>
               <p>{selectedRecord.summary || "这条记录正在等待进一步分析。"}</p>
             </div>
-            <div className="record-detail-actions"><span className="framework-stamp">{selectedRecord.frameworkVersion}</span><button className="ghost-button compact" onClick={() => setEditingRecord({ ...selectedRecord })}>编辑</button><button className="danger-button compact" onClick={() => void moveRecordToTrash(selectedRecord)}>移入回收站</button></div>
+            <div className="record-detail-actions"><span className="framework-stamp">{selectedRecord.frameworkVersion}</span><button className="quiet-action" title="修订记录" onClick={() => setEditingRecord({ ...selectedRecord })}>✎ <span>修订</span></button><button className="quiet-action quiet-danger" title="移入回收站" onClick={() => void moveRecordToTrash(selectedRecord)}>⌫ <span>归藏</span></button></div>
           </div>
           <section className="detail-grid">
             <article className="card raw-record-card">
@@ -1113,7 +1113,7 @@ export function ThoughtLabApp() {
               </div>
               <span className="record-arrow" aria-hidden="true">→</span>
               </button>
-              <div className="record-quick-actions"><button onClick={() => setEditingRecord({ ...record })}>编辑</button><button onClick={() => void moveRecordToTrash(record)}>删除</button></div>
+              <div className="record-quick-actions"><button title="修订" aria-label="修订记录" onClick={() => setEditingRecord({ ...record })}>✎</button><button title="移入回收站" aria-label="移入回收站" onClick={() => void moveRecordToTrash(record)}>⌫</button></div>
             </article>
           ))}
           {filteredRecords.length === 0 && <div className="card empty-search">没有找到符合条件的记录。</div>}
@@ -1161,7 +1161,7 @@ export function ThoughtLabApp() {
             </fieldset>
             <label className="field-label record-text-label">
               记录你的思考
-              <MarkdownComposer value={content} onChange={setContent} placeholder="你在想什么？做了怎样的判断？依据是什么？支持 Markdown、公式、文件与外部链接…" />
+              <MarkdownComposer value={content} onChange={setContent} placeholder="你在想什么？做了怎样的判断？依据是什么？可使用富文本、公式、文件与外部链接…" />
               <span className="char-count">{content.length} 字</span>
             </label>
             <details className="mother-prompts">
@@ -1409,6 +1409,7 @@ export function ThoughtLabApp() {
           title="成长分析"
           note="把质量标准、结构习惯和综合能力分层观察，避免一个总分掩盖真正变化。"
         />
+        <ActivityHeatmap byDay={activityByDay} days={60} />
         <div className="layer-tabs" role="tablist" aria-label="成长分析层级">
           <button className={growthLayer === "standards" ? "active" : ""} onClick={() => setGrowthLayer("standards")}>思维标准</button>
           <button className={growthLayer === "elements" ? "active" : ""} onClick={() => setGrowthLayer("elements")}>思维元素</button>
@@ -1435,7 +1436,6 @@ export function ThoughtLabApp() {
             </article>
           );})}
         </section>
-        <ActivityHeatmap byDay={activityByDay} days={60} />
       </>
     );
   }
@@ -1485,7 +1485,7 @@ export function ThoughtLabApp() {
         <section className="knowledge-workbench">
           <article className="card knowledge-editor-panel">
             <div className="knowledge-editor-head"><div><span className="card-kicker">NEW SOURCE / 一则新材料</span><h2>把思想放在桌面上，边读边整理</h2></div><span>{knowledgeText.length} 字</span></div>
-            <MarkdownComposer value={knowledgeText} onChange={setKnowledgeText} sourceChanged={setKnowledgeSource} placeholder="直接书写，或导入 DOCX、PPTX、PDF、Markdown 与公开网页。输入 ## 后按空格，会自动转为标题。" />
+            <MarkdownComposer value={knowledgeText} onChange={setKnowledgeText} sourceChanged={setKnowledgeSource} placeholder="直接书写，或导入常见文档与公开网页。使用上方工具栏设置标题、加粗、高光、下划线或插图。" />
           </article>
           <aside className="knowledge-context-panel">
             <article className="card source-card"><span className="card-kicker">SOURCE</span><label className="field-label">出处<input value={knowledgeSource} onChange={(event) => setKnowledgeSource(event.target.value)} placeholder="书名、章节、作者或原始链接" /></label><label className="field-label">此刻札记<textarea className="knowledge-note" value={knowledgeNote} onChange={(event) => setKnowledgeNote(event.target.value)} placeholder="它为什么触动你？可能改变什么？" /></label>{knowledgeMessage && <p className="form-warning">{knowledgeMessage}</p>}<button className="primary-button" disabled={knowledgeText.trim().length < 10 || !knowledgeSource.trim()} onClick={analyzeKnowledgeImport}>与现有基座对照 →</button></article>
@@ -1508,7 +1508,7 @@ export function ThoughtLabApp() {
           {knowledgeImports.length === 0 ? <p className="empty-ledger">还没有材料。第一则思想，正等你带回来。</p> : knowledgeImports.slice(0, 6).map((item) => {
             const analysis = JSON.parse(item.analysisJson || "{}") as Partial<ImportAnalysis>;
             const status = item.disposition === "patch" ? "已收录补丁" : item.disposition === "material" ? "材料归档" : "等待检点";
-            return <article className="import-row" key={item.id}><div><span>{status}</span><strong>{analysis.target || "待分析"}</strong></div><p>{item.content.slice(0, 96)}{item.content.length > 96 ? "…" : ""}</p><small>{item.source}</small><div className="import-row-actions"><button onClick={() => setEditingImport({ ...item })}>再编辑</button><button onClick={() => void moveImportToTrash(item)}>移入回收站</button></div></article>;
+            return <article className="import-row" key={item.id}><div><span>{status}</span><strong>{analysis.target || "待分析"}</strong></div><p>{item.content.slice(0, 96)}{item.content.length > 96 ? "…" : ""}</p><small>{item.source}</small><div className="import-row-actions"><button title="修订材料" onClick={() => setEditingImport({ ...item })}>✎ 修订</button><button title="移入回收站" onClick={() => void moveImportToTrash(item)}>⌫ 归藏</button></div></article>;
           })}
         </section>
       </>
@@ -1739,7 +1739,7 @@ export function ThoughtLabApp() {
             </aside>
             <div className="help-content">
               {helpTopic === "start" && <><span className="eyebrow">欢迎来到序理</span><h2>这里不是资料仓库，而是你的思维操作系统。</h2><p>最简单的使用顺序是：在「拾穗门」带回新知识，在「观星台」检点它如何融入体系，在「观照室」用体系解决真实问题，最后到「年轮志」看见整座基座怎样长成。</p><div className="guide-map">{[["观星台", "看全貌"], ["拾穗门", "收材料"], ["观照室", "解问题"], ["年轮志", "看演化"], ["行思录", "留实践"], ["磨砺场", "做训练"]].map(([name, note]) => <div key={name}><strong>{name}</strong><span>{note}</span></div>)}</div><div className="guide-tip"><strong>第一次使用建议</strong><p>先不要急着修改体系。导入一段你最近读到、真正觉得有价值的内容，让系统先解释它与现有基座的关系。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("knowledge"); }}>开始第一次导入 →</button></>}
-              {helpTopic === "import" && <><span className="eyebrow">拾穗门指南</span><h2>让出处、原文与当下想法一起留下。</h2><ol className="guide-steps"><li><strong>选择来源</strong><p>直接输入、DOCX、PPTX、PDF、Markdown 或外部链接均可。旧 DOC/PPT 会保存原文件，但建议转换为新版格式以提取文字。</p></li><li><strong>检查实时预览</strong><p>Markdown、表格、任务列表和公式会即时渲染，例如行内公式 <code>$P(A|B)$</code> 或块公式 <code>$$E=mc^2$$</code>。</p></li><li><strong>写下札记</strong><p>不要只记录“它说了什么”，也写“它为什么重要、可能改变什么”。</p></li><li><strong>决定归宿</strong><p>重复内容做补丁；真正新增的维度进入共创；尚不确定的先暂存。</p></li></ol><div className="guide-example"><small>示例</small><strong>《批判性思维工具》关于假设的段落</strong><p>系统可能归入「假设 × 深度」，建议作为“识别隐含前提”的方法补丁，而不是立即创建新标准。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("knowledge"); }}>去拾穗门 →</button></>}
+              {helpTopic === "import" && <><span className="eyebrow">拾穗门指南</span><h2>让出处、原文与当下想法一起留下。</h2><ol className="guide-steps"><li><strong>选择来源</strong><p>直接输入、常见办公文档、PDF 或外部链接均可。旧 DOC/PPT 会保存原文件，但建议转换为新版格式以提取文字。</p></li><li><strong>边读边整理</strong><p>用富文本工具栏设置标题、加粗、下划线、高光和插图；表格、任务列表与公式同样会即时呈现。</p></li><li><strong>写下札记</strong><p>不要只记录“它说了什么”，也写“它为什么重要、可能改变什么”。</p></li><li><strong>决定归宿</strong><p>重复内容做补丁；真正新增的维度进入共创；尚不确定的先暂存。</p></li></ol><div className="guide-example"><small>示例</small><strong>《批判性思维工具》关于假设的段落</strong><p>系统可能归入「假设 × 深度」，建议作为“识别隐含前提”的方法补丁，而不是立即创建新标准。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("knowledge"); }}>去拾穗门 →</button></>}
               {helpTopic === "analyze" && <><span className="eyebrow">观照室指南</span><h2>先整体看，再选择一束更聚焦的光。</h2><p>输入决策、论证、阅读笔记或困惑。DeepSeek 会严格使用当前基座：先还原八个思维元素，再只评价有文本证据的“元素 × 标准”组合。</p><div className="guide-example"><small>完整例子</small><strong>问题：我是否应该更换研究方向？</strong><p>先选择“整体分析”，看目的、信息、假设与后果是否完整；再选择“假设”，重点追问“新方向更有价值”依赖哪些尚未验证的前提。</p></div><div className="guide-tip"><strong>怎样读结果</strong><p>“暂不评价”并不是低分，而是原文没有足够证据。最有价值的动作通常是回答系统给出的三条启发式问题。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("analyze"); }}>去观照室 →</button></>}
               {helpTopic === "evolve" && <><span className="eyebrow">演化规则</span><h2>小变化留下补丁，大变化形成版本。</h2><div className="evolution-rule"><div><span>PATCH</span><strong>补丁</strong><p>补充定义、例子、反例、问题模板或使用说明，不改变体系主干。</p></div><div><span>VERSION</span><strong>版本</strong><p>新增元素、标准、关系或能力映射，会改变未来分析方式。</p></div><div><span>HOLD</span><strong>暂存</strong><p>有启发但证据不足，保留出处与札记，等待以后重新检点。</p></div></div><p>每次正式改版都保留旧版本；历史记录继续使用当时的分析基座，不会被新版本回写。</p><button className="primary-button" onClick={() => { setHelpOpen(false); go("history"); }}>查看年轮志 →</button></>}
             </div>

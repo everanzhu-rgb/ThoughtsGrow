@@ -103,7 +103,16 @@ export const inspirationFavorites = sqliteTable("inspiration_favorites", {
   quote: text("quote").notNull(),
   author: text("author").notNull().default(""),
   language: text("language").notNull().default("zh"),
+  translation: text("translation").notNull().default(""),
+  source: text("source").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const frameworkNodePositions = sqliteTable("framework_node_positions", {
+  nodeId: text("node_id").primaryKey(),
+  x: real("x").notNull(),
+  y: real("y").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const frameworkNodeNotes = sqliteTable("framework_node_notes", {

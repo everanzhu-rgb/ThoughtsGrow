@@ -15,13 +15,15 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await ensureSchema();
-    const payload = (await request.json()) as { quote?: string; author?: string; language?: string };
+    const payload = (await request.json()) as { quote?: string; author?: string; language?: string; translation?: string; source?: string };
     if (!payload.quote?.trim()) return Response.json({ error: "句子不能为空" }, { status: 400 });
     const [favorite] = await getDb().insert(inspirationFavorites).values({
       id: crypto.randomUUID(),
       quote: payload.quote.trim(),
       author: payload.author?.trim() || "",
       language: payload.language || "zh",
+      translation: payload.translation?.trim() || "",
+      source: payload.source?.trim() || "",
     }).returning();
     return Response.json({ favorite }, { status: 201 });
   } catch (error) {

@@ -4,7 +4,7 @@ import { ensureSchema, getDb } from "@/db";
 import { sourceMaterials } from "@/db/schema";
 import { deepSeekJson } from "@/lib/deepseek";
 
-const allowedExtensions = new Set(["txt", "md", "markdown", "pdf", "doc", "docx", "ppt", "pptx"]);
+const allowedExtensions = new Set(["txt", "md", "markdown", "pdf", "doc", "docx", "ppt", "pptx", "png", "jpg", "jpeg", "gif", "webp"]);
 
 function filesBucket() {
   return (env as unknown as { FILES?: { put(key: string, value: ArrayBuffer, options?: unknown): Promise<unknown> } }).FILES;

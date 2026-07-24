@@ -108,7 +108,15 @@ export async function ensureSchema() {
       quote TEXT NOT NULL,
       author TEXT NOT NULL DEFAULT '',
       language TEXT NOT NULL DEFAULT 'zh',
+      translation TEXT NOT NULL DEFAULT '',
+      source TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS framework_node_positions (
+      node_id TEXT PRIMARY KEY,
+      x REAL NOT NULL,
+      y REAL NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS framework_node_notes (
       id TEXT PRIMARY KEY,

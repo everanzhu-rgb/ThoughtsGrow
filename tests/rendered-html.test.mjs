@@ -3,23 +3,28 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build contains the incremental thinking library", async () => {
-  const [layout, page, app, composer, home, map, activityApi, trashApi, knowledgeApi, materialsApi, aiApi, deepseek, hosting, migration] = await Promise.all([
+  const [layout, page, app, composer, home, map, heatmap, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, aiApi, deepseek, hosting, migration, cinematicMigration] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MarkdownComposer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DynamicHome.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/FrameworkMindMap.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ActivityHeatmap.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/activity/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/trash/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/knowledge/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/materials/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/materials/file/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/framework-layout/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deepseek.ts", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_furry_lorna_dane.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0004_cinematic_atlas.sql", import.meta.url), "utf8"),
     access(new URL("../dist/server/index.js", import.meta.url)),
     access(new URL("../public/og.png", import.meta.url)),
+    access(new URL("../public/home-cinematic.webp", import.meta.url)),
   ]);
 
   assert.match(layout, /序理 · 增量化思维方法库/);
@@ -34,7 +39,14 @@ test("build contains the incremental thinking library", async () => {
   assert.match(app, /归航页 · Home/);
   assert.match(app, /归藏处 · 回收站/);
   assert.match(home, /快速收藏/);
-  assert.match(map, /滚轮缩放/);
+  assert.match(home, /300_000/);
+  assert.match(home, /translation/);
+  assert.match(home, /source/);
+  assert.match(map, /Ctrl\/⌘ \+ 滚轮缩放/);
+  assert.match(map, /全屏展开/);
+  assert.match(map, /保存布局/);
+  assert.match(layoutApi, /frameworkNodePositions/);
+  assert.match(heatmap, /heat-focus/);
   assert.match(activityApi, /activityEvents/);
   assert.match(trashApi, /deleteAfter/);
   assert.match(migration, /framework_node_notes/);
@@ -43,12 +55,16 @@ test("build contains the incremental thinking library", async () => {
   assert.match(composer, /remarkMath/);
   assert.match(composer, /pdfjs-dist/);
   assert.match(composer, /word\/document\.xml/);
-  assert.match(composer, /所见即所得/);
+  assert.match(composer, /富文本/);
+  assert.match(composer, /hiliteColor/);
+  assert.match(composer, /插入图片/);
   assert.match(materialsApi, /sourceMaterials/);
   assert.match(materialsApi, /r\.jina\.ai/);
   assert.match(materialsApi, /summaryZh/);
+  assert.match(materialFileApi, /Content-Disposition/);
   assert.match(materialsApi, /\}\)\.FILES/);
   assert.match(hosting, /"r2": "FILES"/);
+  assert.match(cinematicMigration, /framework_node_positions/);
   assert.match(knowledgeApi, /knowledgeImports/);
   assert.match(aiApi, /deepSeekJson/);
   assert.match(deepseek, /DEEPSEEK_API_KEY/);
