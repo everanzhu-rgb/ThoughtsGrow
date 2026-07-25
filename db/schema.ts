@@ -208,6 +208,16 @@ export const recordNodeLinks = sqliteTable("record_node_links", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const recordRelations = sqliteTable("record_relations", {
+  id: text("id").primaryKey(),
+  fromRecordId: text("from_record_id").notNull(),
+  toRecordId: text("to_record_id").notNull(),
+  relation: text("relation").notNull().default("related"),
+  reason: text("reason").notNull().default(""),
+  status: text("status").notNull().default("confirmed"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const integrationProposals = sqliteTable("integration_proposals", {
   id: text("id").primaryKey(),
   recordId: text("record_id").notNull(),

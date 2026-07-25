@@ -55,6 +55,7 @@ test("build contains the incremental thinking library", async () => {
   assert.match(home, /300_000/);
   assert.match(home, /translation/);
   assert.match(home, /source/);
+  assert.doesNotMatch(home, /<small>补丁<\/small>/);
   assert.match(map, /Ctrl\/⌘ \+ 滚轮缩放/);
   assert.match(map, /全屏展开/);
   assert.match(map, /保存布局/);
@@ -108,7 +109,7 @@ test("build contains the incremental thinking library", async () => {
 });
 
 test("records can be compiled into an editable cognitive base", async () => {
-  const [basePage, integrationStudio, versionHistory, baseApi, integrationApi, integrationAi, analysisApi, baseContext, schema, migration, app] = await Promise.all([
+  const [basePage, integrationStudio, versionHistory, baseApi, integrationApi, integrationAi, analysisApi, baseContext, schema, migration, relationApi, recordRelations, relationMigration, app] = await Promise.all([
     readFile(new URL("../app/components/CognitiveBasePage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/IntegrationStudio.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/BaseVersionHistory.tsx", import.meta.url), "utf8"),
@@ -119,11 +120,19 @@ test("records can be compiled into an editable cognitive base", async () => {
     readFile(new URL("../lib/base-context.ts", import.meta.url), "utf8"),
     readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0007_cognitive_base_engine.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/record-relations/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/RecordRelations.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0008_record_relations.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(basePage, /新增领域基座/);
-  assert.match(basePage, /可执行思维程序/);
+  assert.match(basePage, /认知模组/);
+  assert.match(basePage, /可执行思维流程/);
+  assert.match(basePage, /vertical/);
+  assert.doesNotMatch(basePage, /开始实践这套流程/);
   assert.match(basePage, /建立双向关系/);
+  assert.match(basePage, /create_record_link/);
+  assert.match(basePage, /delete_record_link/);
   assert.match(integrationStudio, /融合工作台/);
   assert.match(integrationStudio, /镜像对照/);
   assert.match(integrationStudio, /接受补丁并发布新版本/);
@@ -135,10 +144,17 @@ test("records can be compiled into an editable cognitive base", async () => {
   assert.match(integrationApi, /publishSpace/);
   assert.match(integrationAi, /个人认知体系编译器/);
   assert.match(baseContext, /当前正式生效、可编辑的个人思维基座/);
+  assert.match(baseContext, /activeAnalysisFlow/);
   assert.match(analysisApi, /activeBaseBrief/);
+  assert.match(analysisApi, /顺序和 step 名称一字不改/);
   assert.match(schema, /baseSpaces/);
   assert.match(schema, /integrationProposals/);
   assert.match(migration, /meta-playbook/);
+  assert.match(relationApi, /recordRelations/);
+  assert.match(recordRelations, /与其他记录的关系/);
+  assert.match(recordRelations, /亲自确认过的关系/);
+  assert.match(relationMigration, /record_relations/);
+  assert.match(app, /RecordRelations/);
   assert.match(app, /融入思维基座/);
   assert.doesNotMatch(app, /## 四、用思维标准逐项检查/);
 });
@@ -157,6 +173,8 @@ test("growth atlas presents evidence and relationships without capability scorin
   assert.match(growth, /建议合并/);
   assert.match(growth, /可能重复/);
   assert.match(growth, /观点张力/);
+  assert.match(growth, /确认这条关系/);
+  assert.match(growth, /api\/record-relations/);
   assert.match(growth, /onOpenRecord/);
   assert.doesNotMatch(growth, /综合能力|metric-card|stage-label/);
 });

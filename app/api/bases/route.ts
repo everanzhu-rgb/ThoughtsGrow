@@ -31,7 +31,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await ensureSchema();
-    const payload = (await request.json()) as { action?: string; id?: string; spaceId?: string; name?: string; kind?: string; description?: string; scope?: string; parentId?: string | null; nodeType?: string; title?: string; content?: string; operational?: unknown; sortOrder?: number; fromNodeId?: string; toNodeId?: string; relation?: string; label?: string; summary?: string; sourceRecordIds?: string[]; versionId?: string };
+    const payload = (await request.json()) as { action?: string; id?: string; spaceId?: string; name?: string; kind?: string; description?: string; scope?: string; parentId?: string | null; nodeType?: string; title?: string; content?: string; operational?: unknown; sortOrder?: number; fromNodeId?: string; toNodeId?: string; recordId?: string; nodeId?: string; relation?: string; label?: string; note?: string; summary?: string; sourceRecordIds?: string[]; versionId?: string };
     const db = getDb(); const now = new Date().toISOString();
     if (payload.action === "create_space") {
       const [space] = await db.insert(baseSpaces).values({ id: crypto.randomUUID(), name: payload.name?.trim() || "未命名领域", kind: payload.kind === "meta" ? "meta" : "domain", description: payload.description?.trim() || "", scope: payload.scope?.trim() || "" }).returning();
@@ -63,6 +63,14 @@ export async function POST(request: Request) {
       const [link] = await db.insert(baseNodeLinks).values({ id: crypto.randomUUID(), fromNodeId: payload.fromNodeId, toNodeId: payload.toNodeId, relation: payload.relation || "related", label: payload.label || "" }).returning(); return Response.json({ link }, { status: 201 });
     }
     if (payload.action === "delete_link" && payload.id) { await db.delete(baseNodeLinks).where(eq(baseNodeLinks.id, payload.id)); return Response.json({ ok: true }); }
+    if (payload.action === "create_record_link" && payload.recordId && payload.nodeId) {
+      const existing = await db.select().from(recordNodeLinks).where(eq(recordNodeLinks.nodeId, payload.nodeId));
+      const found = existing.find((item) => item.recordId === payload.recordId);
+      if (found) return Response.json({ link: found });
+      const [link] = await db.insert(recordNodeLinks).values({ id: crypto.randomUUID(), recordId: payload.recordId, nodeId: payload.nodeId, relation: payload.relation || "source", note: payload.note || "手动添加的来源" }).returning();
+      return Response.json({ link }, { status: 201 });
+    }
+    if (payload.action === "delete_record_link" && payload.id) { await db.delete(recordNodeLinks).where(eq(recordNodeLinks.id, payload.id)); return Response.json({ ok: true }); }
     if (payload.action === "publish" && payload.spaceId) {
       const state = await snapshot(payload.spaceId); const existing = await db.select().from(baseVersions).where(eq(baseVersions.spaceId, payload.spaceId)); const versionNumber = Math.max(0, ...existing.map((item) => item.versionNumber)) + 1;
       const [version] = await db.insert(baseVersions).values({ id: crypto.randomUUID(), spaceId: payload.spaceId, versionNumber, title: payload.title?.trim() || `${state.space?.name || "思维基座"} · v${versionNumber}`, summary: payload.summary?.trim() || "手动发布基座更新", snapshotJson: JSON.stringify(state), sourceRecordIdsJson: JSON.stringify(payload.sourceRecordIds || []) }).returning();

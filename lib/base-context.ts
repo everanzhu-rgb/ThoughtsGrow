@@ -2,6 +2,20 @@ import { asc, eq } from "drizzle-orm";
 import { ensureSchema, getDb } from "@/db";
 import { baseNodes, baseSpaces } from "@/db/schema";
 
+export type ActiveFlow = { id: string; name: string; steps: Array<{ title: string; question: string; why: string; done: string }> };
+
+export async function activeAnalysisFlow(): Promise<ActiveFlow | null> {
+  await ensureSchema();
+  const nodes = await getDb().select().from(baseNodes).where(eq(baseNodes.status, "active")).orderBy(asc(baseNodes.sortOrder));
+  const playbook = nodes.find((node) => node.nodeType === "playbook" && node.spaceId === "meta-core") || nodes.find((node) => node.nodeType === "playbook");
+  if (!playbook) return null;
+  try {
+    const parsed = JSON.parse(playbook.operationalJson || "{}") as { steps?: ActiveFlow["steps"] };
+    const steps = (parsed.steps || []).filter((step) => step.title && step.question);
+    return steps.length ? { id: playbook.id, name: playbook.title, steps } : null;
+  } catch { return null; }
+}
+
 export async function activeBaseBrief() {
   await ensureSchema();
   const db = getDb();

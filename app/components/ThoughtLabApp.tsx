@@ -11,6 +11,7 @@ import { CabinetPage } from "./CabinetPage";
 import { CognitiveBasePage } from "./CognitiveBasePage";
 import { IntegrationStudio } from "./IntegrationStudio";
 import { BaseVersionHistory } from "./BaseVersionHistory";
+import { RecordRelations } from "./RecordRelations";
 
 type PageKey =
   | "dashboard"
@@ -447,7 +448,7 @@ function analysisToMarkdown(result: ModelAnalysis, focus: string) {
   const journey = result.reasoningJourney.map((item, index) => `### ${index + 1}. ${item.step}\n\n**从哪里出发：** ${item.from}\n\n**做了什么思考动作：** ${item.thoughtMove}\n\n**走到了哪里：** ${item.to}\n\n**使用的体系：** ${item.framework}\n\n**为什么这一步成立：** ${item.why}`).join("\n\n");
   const structureText = result.structure.map((item) => `### ${item.name}\n\n${item.text}`).join("\n\n");
   const questions = result.questions.map((item, index) => `### 问题 ${index + 1}\n\n**${item.question}**\n\n#### 这个问题是怎样一步步构建出来的？\n\n${item.rationale}\n\n#### 构建依据\n\n${item.basis}\n\n#### 你可以怎样仿照？\n\n先圈出原文中尚未说明、彼此冲突或证据薄弱的地方，再选择对应的思维元素与标准，确定希望自己完成的认知动作，最后把宽泛的“为什么”收窄为一个能用证据回答的问题。`).join("\n\n");
-  return `# 思维分析报告\n\n> 这份报告不替你下结论，而是把一段文字怎样被逐步理解、检验并转化为可行动认识的过程连成一条路。\n\n## 一、先抓住它真正想说什么\n\n${result.overview}\n\n## 二、沿着人的理解过程，一步一步走到本质\n\n${journey}\n\n## 三、把散落信息连成一条完整思路\n\n${structureText}\n\n## 四、理解发生转折的地方\n\n### 已经站得住的部分\n\n${result.strengths.map((item) => `- ${item}`).join("\n")}\n\n### 还不能轻易跨过去的部分\n\n${result.gaps.map((item) => `- ${item}`).join("\n")}\n\n### 聚焦理解 · ${focus}\n\n${result.focusFinding}\n\n> 我这样判断的直接依据：${result.evidence}\n\n## 五、启发式问题，以及问题是怎样长出来的\n\n${questions}\n\n## 六、把理解变成下一步行动\n\n${result.nextStep}\n\n## 七、准备进入个人思维基座\n\n下一步可以进入“融合工作台”，判断这条记录应当修改元认知基座、领域基座，或同时影响两者。系统会先生成镜像补丁，正式体系不会被自动改写。`;
+  return `# 思维分析报告\n\n> 这份报告不替你下结论，而是把一段文字怎样被逐步理解、检验并转化为可行动认识的过程连成一条路。\n\n## 一、先抓住它真正想说什么\n\n${result.overview}\n\n## 二、沿当前可执行流程，一步一步走到本质\n\n${journey}\n\n## 三、把散落信息连成一条完整思路\n\n${structureText}\n\n## 四、理解发生转折的地方\n\n### 已经站得住的部分\n\n${result.strengths.map((item) => `- ${item}`).join("\n")}\n\n### 还不能轻易跨过去的部分\n\n${result.gaps.map((item) => `- ${item}`).join("\n")}\n\n### 聚焦理解 · ${focus}\n\n${result.focusFinding}\n\n> 我这样判断的直接依据：${result.evidence}\n\n## 五、启发式问题，以及问题是怎样长出来的\n\n${questions}\n\n## 六、把理解变成下一步行动\n\n${result.nextStep}\n\n## 七、准备进入个人思维基座\n\n下一步可以进入“融合工作台”，判断这条记录应当修改元认知基座、领域基座，或同时影响两者。系统会先生成镜像补丁，正式体系不会被自动改写。`;
 }
 
 export function ThoughtLabApp() {
@@ -1174,6 +1175,7 @@ export function ThoughtLabApp() {
             </article>
           </section>
           {selectedRecord.reportContent ? <section className="card saved-report-card"><div className="saved-report-head"><div><span className="eyebrow">SAVED ANALYSIS</span><h2>随记录保存的分析报告</h2></div><button className="quiet-action" onClick={() => { setEditingTarget("report"); setEditingRecord({ ...selectedRecord }); }}>✎ 编辑报告</button></div><RichTextView>{selectedRecord.reportContent}</RichTextView></section> : <section className="card empty-report-card"><div><span className="eyebrow">OPTIONAL ANALYSIS</span><h2>原文已经安全保存。分析是可选的。</h2><p>你可以现在用完整体系分析，也可以在以后真正需要时再进入观照室。</p></div><button className="primary-button" onClick={() => openInAnalyze(selectedRecord)}>分析这条记录 →</button></section>}
+          <RecordRelations recordId={selectedRecord.id} onOpenRecord={(id) => { const record = records.find((item) => item.id === id); if (record) setSelectedRecord(record); }} />
           <section className="card annotation-card"><SectionHeader eyebrow="有时批注" title="给原文与报告留下时间刻度" note="批注不会覆盖正文，并会保留写下时的准确时间。" /><div className="annotation-compose"><select id="annotation-target"><option value="record">批注原文</option><option value="report">批注报告</option></select><textarea value={annotationDraft} onChange={(event) => setAnnotationDraft(event.target.value)} placeholder="写下补充、疑问、反例或后来改变的看法…" /><button disabled={!annotationDraft.trim()} onClick={() => { const target = (document.getElementById("annotation-target") as HTMLSelectElement)?.value === "report" ? "report" : "record"; void addAnnotation(target); }}>留下批注</button></div><div className="annotation-timeline">{(() => { try { const notes = JSON.parse(selectedRecord.annotationsJson || "[]") as Array<{ id: string; target: string; content: string; createdAt: string }>; return notes.length ? notes.map((item) => <article key={item.id}><span>{item.target === "report" ? "报告" : "原文"}</span><p>{item.content}</p><time>{new Date(item.createdAt).toLocaleString("zh-CN")}</time></article>) : <p className="empty-ledger">还没有批注。</p>; } catch { return null; } })()}</div></section>
           <section className="card evidence-summary-card">
             <SectionHeader eyebrow="关键发现" title="本次最值得继续深入的地方" />

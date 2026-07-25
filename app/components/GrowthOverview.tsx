@@ -28,8 +28,9 @@ type Evidence = {
 };
 
 type RelationKind = "related" | "merge" | "duplicate" | "tension";
-type Relation = { from: string; to: string; kind: RelationKind; weight: number; reason: string };
+type Relation = { from: string; to: string; kind: RelationKind; weight: number; reason: string; confirmedId?: string };
 type Space = { id: string; name: string; kind: string; description?: string; scope?: string };
+type ConfirmedRelation = { id: string; fromRecordId: string; toRecordId: string; relation: RelationKind; reason: string };
 
 const domainRules = [
   { name: "科研与学术", keywords: ["研究", "论文", "学术", "实验", "数据", "证据", "方法", "模型", "科研", "假说"] },
@@ -163,9 +164,12 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
   const [focusedDomain, setFocusedDomain] = useState("");
   const [focusedNode, setFocusedNode] = useState("");
   const [graphScale, setGraphScale] = useState(1);
+  const [confirmedRelations, setConfirmedRelations] = useState<ConfirmedRelation[]>([]);
+  const [relationMessage, setRelationMessage] = useState("");
   const [timeAnchor] = useState(() => Date.now());
 
   useEffect(() => { void fetch("/api/bases").then((response) => response.ok ? response.json() : Promise.reject()).then((data) => setSpaces(data.spaces || [])).catch(() => setSpaces([])); }, []);
+  useEffect(() => { void fetch("/api/record-relations").then((response) => response.ok ? response.json() : Promise.reject()).then((data) => setConfirmedRelations(data.relations || [])).catch(() => setConfirmedRelations([])); }, []);
 
   const recentRecords = useMemo(() => {
     const since = timeAnchor - range * 86400000;
@@ -174,7 +178,13 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
   const focus = useMemo(() => buildFocus(recentRecords), [recentRecords]);
   const shownFocus = focusedDomain ? focus.find((item) => item.name === focusedDomain) || focus[0] : focus[0];
   const graphRecords = useMemo(() => [...records].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 24), [records]);
-  const relations = useMemo(() => buildRelations(graphRecords), [graphRecords]);
+  const inferredRelations = useMemo(() => buildRelations(graphRecords), [graphRecords]);
+  const relations = useMemo(() => {
+    const graphIds = new Set(graphRecords.map((record) => record.id));
+    const confirmed = confirmedRelations.filter((relation) => graphIds.has(relation.fromRecordId) && graphIds.has(relation.toRecordId)).map((relation): Relation => ({ from: relation.fromRecordId, to: relation.toRecordId, kind: relation.relation, weight: 1, reason: relation.reason, confirmedId: relation.id }));
+    const keys = new Set(confirmed.map((relation) => [relation.from, relation.to].sort().join("::")));
+    return [...confirmed, ...inferredRelations.filter((relation) => !keys.has([relation.from, relation.to].sort().join("::")))];
+  }, [confirmedRelations, graphRecords, inferredRelations]);
   const positions = useMemo(() => graphPositions(graphRecords), [graphRecords]);
   const selectedRecord = graphRecords.find((record) => record.id === focusedNode) || graphRecords[0];
   const selectedRelations = selectedRecord ? relations.filter((relation) => relation.from === selectedRecord.id || relation.to === selectedRecord.id) : [];
@@ -190,6 +200,15 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
   const maxEvidence = Math.max(1, ...focus.map((item) => item.evidence.length));
   const viewWidth = 1000 / graphScale; const viewHeight = 570 / graphScale;
   const viewBox = `${500 - viewWidth / 2} ${285 - viewHeight / 2} ${viewWidth} ${viewHeight}`;
+
+  async function confirmRelation(relation: Relation) {
+    if (relation.confirmedId) return;
+    setRelationMessage("正在保存这条双向关系…");
+    const response = await fetch("/api/record-relations", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fromRecordId: relation.from, toRecordId: relation.to, relation: relation.kind, reason: relation.reason }) });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { setRelationMessage(data.error || "保存失败"); return; }
+    setConfirmedRelations(data.relations || []); setRelationMessage("关系已写入两条思维记录，可以在记录详情中回看。");
+  }
 
   return <div className="growth-overview">
     <header className="growth-overview-hero">
@@ -226,13 +245,13 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
       {graphRecords.length ? <div className="relation-workbench">
         <div className="relation-canvas">
           <svg viewBox={viewBox} role="img" aria-label="思维记录关系图谱">
-            <g className="relation-edges">{relations.map((relation) => { const from = positions.get(relation.from)!; const to = positions.get(relation.to)!; return <line key={`${relation.from}-${relation.to}`} className={relation.kind} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />; })}</g>
+            <g className="relation-edges">{relations.map((relation, index) => { const from = positions.get(relation.from)!; const to = positions.get(relation.to)!; const midX = (from.x + to.x) / 2; const midY = (from.y + to.y) / 2; const dx = to.x - from.x; const dy = to.y - from.y; const length = Math.max(1, Math.hypot(dx, dy)); const curve = ((index % 5) - 2) * 9; const controlX = midX - (dy / length) * curve; const controlY = midY + (dx / length) * curve; const selected = selectedRecord && (relation.from === selectedRecord.id || relation.to === selectedRecord.id); return <g key={`${relation.from}-${relation.to}`} className={`${relation.kind} ${relation.confirmedId ? "confirmed" : ""} ${selected ? "selected" : ""}`}><path d={`M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`} /><circle cx={midX} cy={midY} r={relation.confirmedId ? 4 : 2.5} /><text x={midX} y={midY - 8} textAnchor="middle">{relation.confirmedId ? `已确认 · ${relationLabel(relation.kind)}` : relationLabel(relation.kind)}</text></g>; })}</g>
             <g className="relation-nodes">{graphRecords.map((record) => { const position = positions.get(record.id)!; const active = selectedRecord?.id === record.id; const radius = 9 + Math.min(8, record.importance || 3); return <g key={record.id} role="button" tabIndex={0} aria-label={`${record.title}，${position.domain}`} className={active ? "active" : ""} onMouseEnter={() => setFocusedNode(record.id)} onFocus={() => setFocusedNode(record.id)} onClick={() => setFocusedNode(record.id)} onKeyDown={(event) => { if (event.key === "Enter") setFocusedNode(record.id); }}><circle cx={position.x} cy={position.y} r={radius + (active ? 7 : 0)} className="node-halo" /><circle cx={position.x} cy={position.y} r={radius} /><text x={position.x} y={position.y + radius + 17} textAnchor="middle">{record.title.slice(0, 9)}{record.title.length > 9 ? "…" : ""}</text></g>; })}</g>
           </svg>
         </div>
-        <aside className="relation-inspector" aria-live="polite">{selectedRecord && <><span>{primaryDomain(selectedRecord)}</span><h3>{selectedRecord.title || "未命名记录"}</h3><p>{excerpt(selectedRecord.summary || selectedRecord.content, 130)}</p><div className="relation-suggestions">{selectedRelations.length ? selectedRelations.sort((a, b) => b.weight - a.weight).map((relation) => { const otherId = relation.from === selectedRecord.id ? relation.to : relation.from; const other = graphRecords.find((record) => record.id === otherId)!; return <button type="button" key={`${relation.from}-${relation.to}`} onClick={() => setFocusedNode(otherId)}><i className={relation.kind}>{relationLabel(relation.kind)}</i><strong>{other.title}</strong><p>{relation.reason}</p></button>; }) : <div className="relation-none">暂未发现强关联。它可能是一条真正的新枝，也可能需要更多上下文。</div>}</div><button type="button" className="open-record-link" onClick={() => onOpenRecord(selectedRecord.id)}>打开这条记录 →</button></>}</aside>
+        <aside className="relation-inspector" aria-live="polite">{selectedRecord && <><span>{primaryDomain(selectedRecord)}</span><h3>{selectedRecord.title || "未命名记录"}</h3><p>{excerpt(selectedRecord.summary || selectedRecord.content, 130)}</p><div className="relation-suggestions">{selectedRelations.length ? selectedRelations.sort((a, b) => b.weight - a.weight).map((relation) => { const otherId = relation.from === selectedRecord.id ? relation.to : relation.from; const other = graphRecords.find((record) => record.id === otherId)!; return <article key={`${relation.from}-${relation.to}`}><button type="button" className="relation-jump" onClick={() => setFocusedNode(otherId)}><i className={relation.kind}>{relationLabel(relation.kind)}</i><strong>{other.title}</strong><p>{relation.reason}</p></button><button type="button" className={`confirm-relation ${relation.confirmedId ? "confirmed" : ""}`} disabled={Boolean(relation.confirmedId)} onClick={() => void confirmRelation(relation)}>{relation.confirmedId ? "✓ 已写入记录" : "确认这条关系"}</button></article>; }) : <div className="relation-none">暂未发现强关联。它可能是一条真正的新枝，也可能需要更多上下文。</div>}</div>{relationMessage && <small className="relation-message">{relationMessage}</small>}<button type="button" className="open-record-link" onClick={() => onOpenRecord(selectedRecord.id)}>打开这条记录 →</button></>}</aside>
       </div> : <div className="growth-empty"><strong>图谱等待第一颗节点</strong><p>保存思维记录后，关系会逐步显现。</p></div>}
-      <footer className="relation-note">关系推演基于共同标签、关注领域与文本相似性；“冲突”和“合并”均是待你确认的建议，不会自动改动原记录。</footer>
+      <footer className="relation-note">颜色和线型分别表达隐性关联、建议合并、可能重复与观点张力；只有点击“确认这条关系”后，关系才会写入两条记录。</footer>
     </section>
   </div>;
 }

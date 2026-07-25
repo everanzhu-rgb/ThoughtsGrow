@@ -183,6 +183,11 @@ export async function ensureSchema() {
       id TEXT PRIMARY KEY, record_id TEXT NOT NULL, node_id TEXT NOT NULL,
       relation TEXT NOT NULL DEFAULT 'source', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS record_relations (
+      id TEXT PRIMARY KEY, from_record_id TEXT NOT NULL, to_record_id TEXT NOT NULL,
+      relation TEXT NOT NULL DEFAULT 'related', reason TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'confirmed', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS integration_proposals (
       id TEXT PRIMARY KEY, record_id TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'draft', proposal_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -214,6 +219,8 @@ export async function ensureSchema() {
     d1.prepare("CREATE INDEX IF NOT EXISTS activity_events_occurred_idx ON activity_events(occurred_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS base_nodes_space_idx ON base_nodes(space_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS record_node_links_record_idx ON record_node_links(record_id)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS record_relations_from_idx ON record_relations(from_record_id)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS record_relations_to_idx ON record_relations(to_record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS integration_record_idx ON integration_proposals(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS base_versions_space_idx ON base_versions(space_id)"),
   ]);

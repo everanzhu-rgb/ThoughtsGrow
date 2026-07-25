@@ -36,7 +36,6 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
   }, []);
 
   const activeDays = useMemo(() => new Set(records.map((item) => item.createdAt.slice(0, 10))).size, [records]);
-  const patches = imports.filter((item) => item.disposition === "patch").length;
 
   async function toggleFavorite() {
     setSaving(true);
@@ -81,7 +80,7 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
       <div className="home-data-constellation">
         <div><small>记录</small><strong>{records.length}</strong><span>THOUGHTS</span></div>
         <div><small>材料</small><strong>{imports.length}</strong><span>SOURCES</span></div>
-        <div><small>补丁</small><strong>{patches}</strong><span>PATCHES</span></div>
+        <div><small>收藏</small><strong>{favorites.length}</strong><span>KEEPSAKES</span></div>
         <div><small>活跃日</small><strong>{activeDays}</strong><span>ACTIVE DAYS</span></div>
         <div><small>版本 / 专题</small><strong>{Math.max(versionCount, 1)} · {topicCount}</strong><span>EVOLUTION</span></div>
       </div>
