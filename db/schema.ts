@@ -199,6 +199,19 @@ export const baseNodeLinks = sqliteTable("base_node_links", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const baseNodeQuestions = sqliteTable("base_node_questions", {
+  id: text("id").primaryKey(),
+  nodeId: text("node_id").notNull(),
+  question: text("question").notNull(),
+  rationale: text("rationale").notNull().default(""),
+  trigger: text("trigger").notNull().default(""),
+  completion: text("completion").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const recordNodeLinks = sqliteTable("record_node_links", {
   id: text("id").primaryKey(),
   recordId: text("record_id").notNull(),
@@ -215,6 +228,22 @@ export const recordRelations = sqliteTable("record_relations", {
   relation: text("relation").notNull().default("related"),
   reason: text("reason").notNull().default(""),
   status: text("status").notNull().default("confirmed"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const recordFolders = sqliteTable("record_folders", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  parentId: text("parent_id"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const recordFolderLinks = sqliteTable("record_folder_links", {
+  id: text("id").primaryKey(),
+  folderId: text("folder_id").notNull(),
+  recordId: text("record_id").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

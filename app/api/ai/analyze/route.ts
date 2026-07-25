@@ -77,11 +77,12 @@ function normalizeResult(value: unknown, flow: ActiveFlow | null): AnalysisResul
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as { text?: string; focus?: string; scene?: string };
+    const payload = (await request.json()) as { text?: string; focus?: string; scene?: string; baseSpaceId?: string };
     const text = payload.text?.trim();
     if (!text || text.length < 10) return Response.json({ error: "请至少输入 10 个字。" }, { status: 400 });
     const focus = payload.focus?.trim() || "整体分析";
-    const [personalBase, activeFlow] = await Promise.all([activeBaseBrief(), activeAnalysisFlow()]);
+    const baseSpaceId = payload.baseSpaceId?.trim() || "meta-core";
+    const [personalBase, activeFlow] = await Promise.all([activeBaseBrief(baseSpaceId), activeAnalysisFlow(baseSpaceId)]);
     const flowInstruction = activeFlow ? `当前必须执行的分析流程是“${activeFlow.name}”。reasoningJourney 必须严格包含 ${activeFlow.steps.length} 步，顺序和 step 名称一字不改，不得新增、合并或跳过：\n${activeFlow.steps.map((step, index) => `${index + 1}. ${step.title}｜核心问题：${step.question}｜为什么：${step.why}｜完成标准：${step.done}`).join("\n")}\n每一步的 from、thoughtMove、to、why 都必须针对本次原文写具体分析，不能只复述流程说明。` : "当前没有可执行流程；使用最小、连贯且不跳步的分析路径。";
     const rawResult = await deepSeekJson<unknown>([
       {
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
 ${flowInstruction}
 必须输出 JSON，字段为 overview、strengths、gaps、nextStep、focusTitle、focusFinding、evidence、questions、reasoningJourney、suggestedTitle、suggestedScene、suggestedTags、suggestedNote、structure、assessments。
 reasoningJourney 的每个对象包含 step、from、thoughtMove、to、framework、why，必须服从上面给出的当前可执行流程。没有证据时明确说明缺什么，不能臆测。
-questions 为 2-4 个对象。每个对象必须包含 question、rationale、basis。rationale 要把“观察到的原文现象 → 对应框架维度 → 发现的缺口或张力 → 希望触发的认知动作 → 最终措辞”完整展开，并解释为什么这个问法比宽泛问题更精确。basis 要逐项列出原文证据、涉及的思维元素与标准。目标不仅是给问题，更是教会用户以后怎样独立构建同类高质量问题。
+questions 为 2-4 个对象。每个对象必须包含 question、rationale、basis。优先从所选基座节点中用户亲自维护的启发式问题出发：适用时保留其核心问法，再根据原文具体化；不适用时才沿用相同的构建逻辑新建问题。rationale 要把“观察到的原文现象 → 命中的基座节点与触发条件 → 发现的缺口或张力 → 希望触发的认知动作 → 最终措辞”完整展开，并解释为什么这个问法比宽泛问题更精确。basis 要逐项列出原文证据、基座空间、节点路径与启发式问题依据。目标不仅是给问题，更是教会用户以后怎样独立构建同类高质量问题。
 structure 使用全部八个思维元素，缺失内容明确写“原文未提供”；assessments 保留有证据的 4-8 个组合，并解释证据如何支持判断。strengths/gaps 各 2-5 条。
 suggestedTitle 要简洁具体；suggestedScene 是一个适合作为检索标签的情境名；suggestedTags 为 3-6 个可检索标签；suggestedNote 用一句话说明这条记录值得留下的原因。`,
       },

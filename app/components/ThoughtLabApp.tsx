@@ -8,7 +8,7 @@ import { GrowthOverview } from "./GrowthOverview";
 import { RichTextView } from "./RichTextView";
 import { TrainingHub } from "./TrainingHub";
 import { CabinetPage } from "./CabinetPage";
-import { CognitiveBasePage } from "./CognitiveBasePage";
+import { CognitiveBasePage, type BaseSpace } from "./CognitiveBasePage";
 import { IntegrationStudio } from "./IntegrationStudio";
 import { BaseVersionHistory } from "./BaseVersionHistory";
 import { RecordRelations } from "./RecordRelations";
@@ -30,10 +30,11 @@ type PageKey =
 type FlowPhase =
   | "compose"
   | "saving"
-  | "structure"
-  | "assessment"
-  | "review"
-  | "result";
+  | "assessment";
+
+type RecordFolder = { id: string; name: string; parentId?: string | null };
+type RecordFolderLink = { id: string; folderId: string; recordId: string };
+const RECENT_RECORD_CUTOFF = Date.now() - 30 * 86400000;
 
 type FrameworkEditorKind =
   | "version"
@@ -257,60 +258,6 @@ const topics = [
 
 const sceneOptions = ["日常思考", "听课与阅读", "重要决策", "每日复盘", "日常聊天", "学术讨论"];
 
-const structure = [
-  { name: "目的", text: "在不放弃已有积累的前提下，判断是否值得调整研究方向。" },
-  { name: "问题", text: "继续现有方向，还是先验证一个更有解释力的新方法？" },
-  { name: "信息", text: "现有方向积累较多；新方法可能解释力更强；转换存在时间成本。" },
-  { name: "解释与推理", text: "因为直接转向风险较高，而小规模验证成本可控，所以先试验再决定。" },
-  { name: "概念", text: "“更有解释力”“积累”“转换风险”是三个关键概念。" },
-  { name: "假设", text: "小规模验证足以判断新方法价值；现有进度允许短暂分流。" },
-  { name: "结果与意义", text: "短期增加工作量，长期可能减少错误方向上的投入。" },
-  { name: "观点", text: "主要站在研究效率与个人机会成本的角度看问题。" },
-];
-
-const assessments = [
-  {
-    pair: "问题 × 清晰性",
-    score: 82,
-    evidence: "充分",
-    confidence: "高",
-    quote: "我需要判断是继续现有方向，还是先验证新方法。",
-    reason: "核心选择被明确提出，也包含可比较的行动路径。",
-  },
-  {
-    pair: "信息 × 准确性",
-    score: null,
-    evidence: "不足",
-    confidence: "低",
-    quote: "新方法可能更有解释力。",
-    reason: "没有提供数据、文献或验证结果，暂不判断准确性。",
-  },
-  {
-    pair: "解释与推理 × 逻辑性",
-    score: 78,
-    evidence: "较充分",
-    confidence: "中高",
-    quote: "直接转向风险太高，所以我想先做一个小规模验证。",
-    reason: "行动与风险判断能够连接，但“验证成功”的判据尚未说明。",
-  },
-  {
-    pair: "假设 × 深度",
-    score: 57,
-    evidence: "充分",
-    confidence: "高",
-    quote: "先做一个小规模验证，就能知道是否值得转向。",
-    reason: "识别到了验证需要，但没有检查小样本能否回答真正问题。",
-  },
-  {
-    pair: "观点 × 广度",
-    score: 58,
-    evidence: "充分",
-    confidence: "高",
-    quote: "我主要担心自己的时间成本。",
-    reason: "主要从个人效率出发，尚未纳入合作方或反对者的视角。",
-  },
-];
-
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("zh-CN", {
     month: "short",
@@ -471,11 +418,6 @@ export function ThoughtLabApp() {
   const [savedId, setSavedId] = useState("");
   const [saveWarning, setSaveWarning] = useState("");
   const [analysisStep, setAnalysisStep] = useState(0);
-  const [reviewTurn, setReviewTurn] = useState(0);
-  const [reviewAnswer, setReviewAnswer] = useState("");
-  const [reviewAnswers, setReviewAnswers] = useState<string[]>([]);
-  const [reviewElement, setReviewElement] = useState("观点");
-  const [reviewStandard, setReviewStandard] = useState("广度");
   const [knowledgeText, setKnowledgeText] = useState("");
   const [knowledgeAnalyzed, setKnowledgeAnalyzed] = useState(false);
   const [knowledgeSource, setKnowledgeSource] = useState("");
@@ -488,6 +430,8 @@ export function ThoughtLabApp() {
   const [historySelected, setHistorySelected] = useState<FrameworkVersion | null>(null);
   const [analysisText, setAnalysisText] = useState("");
   const [analysisFocus, setAnalysisFocus] = useState("整体分析");
+  const [analysisBaseId, setAnalysisBaseId] = useState("meta-core");
+  const [analysisBases, setAnalysisBases] = useState<BaseSpace[]>([]);
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [analysisRecordId, setAnalysisRecordId] = useState("");
   const [analysisSaveState, setAnalysisSaveState] = useState<"" | "saving" | "saved">("");
@@ -500,8 +444,6 @@ export function ThoughtLabApp() {
   const [starFilter, setStarFilter] = useState(0);
   const [selectedRecordIds, setSelectedRecordIds] = useState<string[]>([]);
   const [mergeTitle, setMergeTitle] = useState("");
-  const [structureEdits, setStructureEdits] = useState<Record<string, string>>({});
-  const [editingStructure, setEditingStructure] = useState<string | null>(null);
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "settings" | null>(null);
   const [customTopics, setCustomTopics] = useState<Array<(typeof topics)[number] & { id?: string }>>([]);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -523,12 +465,27 @@ export function ThoughtLabApp() {
   const [editingImport, setEditingImport] = useState<KnowledgeImport | null>(null);
   const [trashRecords, setTrashRecords] = useState<StoredRecord[]>([]);
   const [trashImports, setTrashImports] = useState<KnowledgeImport[]>([]);
+  const [recordFolders, setRecordFolders] = useState<RecordFolder[]>([]);
+  const [recordFolderLinks, setRecordFolderLinks] = useState<RecordFolderLink[]>([]);
+  const [activeFolderId, setActiveFolderId] = useState("all");
 
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem("xuli-scene-tags") || "[]") as string[];
       if (saved.length) queueMicrotask(() => setSceneChoices(saved));
     } catch { /* Keep the built-in scene tags. */ }
+  }, []);
+
+  async function loadRecordFolders() {
+    const response = await fetch("/api/record-folders");
+    if (!response.ok) return;
+    const data = await response.json() as { folders?: RecordFolder[]; links?: RecordFolderLink[] };
+    setRecordFolders(data.folders || []); setRecordFolderLinks(data.links || []);
+  }
+
+  useEffect(() => {
+    fetch("/api/bases").then((response) => response.ok ? response.json() : null).then((data) => setAnalysisBases(data?.spaces || [])).catch(() => undefined);
+    fetch("/api/record-folders").then((response) => response.ok ? response.json() : null).then((data) => { if (data) { setRecordFolders(data.folders || []); setRecordFolderLinks(data.links || []); } }).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -586,6 +543,14 @@ export function ThoughtLabApp() {
   }), [records, recordFilter, recordQuery, starFilter, tagFilter]);
 
   const allRecordTags = useMemo(() => [...new Set(records.flatMap((record) => { try { return JSON.parse(record.tagsJson || "[]") as string[]; } catch { return []; } }))].sort(), [records]);
+  const recordScenes = useMemo(() => [...new Set(records.map((record) => record.scene).filter(Boolean))].slice(0, 8), [records]);
+  const organizedRecords = useMemo(() => filteredRecords.filter((record) => {
+    if (activeFolderId === "all") return true;
+    if (activeFolderId === "recent") return new Date(record.updatedAt || record.createdAt).getTime() >= RECENT_RECORD_CUTOFF;
+    if (activeFolderId === "unfiled") return !recordFolderLinks.some((link) => link.recordId === record.id);
+    if (activeFolderId.startsWith("scene:")) return record.scene === activeFolderId.slice(6);
+    return recordFolderLinks.some((link) => link.folderId === activeFolderId && link.recordId === record.id);
+  }), [activeFolderId, filteredRecords, recordFolderLinks]);
 
   const go = (page: PageKey) => {
     const destination = page === "knowledge" ? "records" : page;
@@ -595,8 +560,8 @@ export function ThoughtLabApp() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  async function requestModelAnalysis(text: string, focus: string, analysisScene = "未指定") {
-    const response = await postJson("/api/ai/analyze", { text, focus, scene: analysisScene });
+  async function requestModelAnalysis(text: string, focus: string, analysisScene = "未指定", baseSpaceId = "meta-core") {
+    const response = await postJson("/api/ai/analyze", { text, focus, scene: analysisScene, baseSpaceId });
     const data = (await response.json()) as { error?: string; result?: ModelAnalysis };
     if (!response.ok || !data.result) throw new Error(data.error || "模型分析失败，请重试。");
     return data.result;
@@ -609,7 +574,7 @@ export function ThoughtLabApp() {
     setAnalysisComplete(false);
     setAnalysisSaveState("");
     try {
-      const result = await requestModelAnalysis(analysisText, analysisFocus);
+      const result = await requestModelAnalysis(analysisText, "整体分析", "观照室", analysisBaseId);
       setModelAnalysis(result);
       setAnalysisComplete(true);
     } catch (error) {
@@ -652,6 +617,13 @@ export function ThoughtLabApp() {
       setAnalysisSaveState("saved");
     } catch (error) { setAnalysisSaveState(""); setModelError(error instanceof Error ? error.message : "保存失败"); }
   }
+
+  async function createRecordFolder() {
+    const name = window.prompt("给这个文件夹取一个名字"); if (!name?.trim()) return;
+    await postJson("/api/record-folders", { action: "create", name: name.trim() }); await loadRecordFolders();
+  }
+  async function deleteRecordFolder(id: string) { if (!window.confirm("删除文件夹？其中记录不会被删除，只会回到未归档。")) return; await postJson("/api/record-folders", { action: "delete", id }); if (activeFolderId === id) setActiveFolderId("all"); await loadRecordFolders(); }
+  async function moveRecordToFolder(recordId: string, folderId: string) { await postJson("/api/record-folders", { action: "move", recordId, folderId: folderId || null }); await loadRecordFolders(); }
 
   function discardQuickAnalysis() {
     setAnalysisComplete(false); setModelAnalysis(null); setAnalysisSaveState(""); setModelError("");
@@ -729,7 +701,15 @@ export function ThoughtLabApp() {
         if (!sceneChoices.includes(completedScene)) setSceneChoices((items) => [...items, completedScene]);
       }
       setAnalysisStep(3);
-      setFlowPhase("structure");
+      const reportContent = analysisToMarkdown(result, "整体分析");
+      const reportResponse = await postJson("/api/records/update", {
+        action: "analysis", recordId: created.id, summary: result.overview,
+        primaryIssue: result.gaps?.[0] || "暂无明确缺口", structure: result.structure,
+        assessments: result.assessments, issues: result.gaps, report: result, reportContent,
+      });
+      if (!reportResponse.ok) throw new Error("完整分析结果归档失败");
+      setRecords((items) => items.map((item) => item.id === created.id ? { ...item, status: "analyzed", summary: result.overview, primaryIssue: result.gaps?.[0] || "", analysisReportJson: JSON.stringify(result), reportContent } : item));
+      setFlowPhase("assessment");
     } catch (error) {
       setFlowPhase("compose");
       setSaveWarning(`${error instanceof Error ? error.message : "分析失败"} 原文已经保存，可稍后重试分析。`);
@@ -738,73 +718,12 @@ export function ThoughtLabApp() {
 
   async function startAnalysis(event: FormEvent) { event.preventDefault(); await persistUnifiedRecord(true); }
 
-  async function confirmStructure() {
-    setFlowPhase("assessment");
-    if (savedId) {
-      const resolvedAnalysis = modelAnalysis ? { ...modelAnalysis, structure: modelAnalysis.structure.map((item) => ({ ...item, text: structureEdits[item.name] ?? item.text })) } : null;
-      if (resolvedAnalysis) setModelAnalysis(resolvedAnalysis);
-      const reportContent = resolvedAnalysis ? analysisToMarkdown(resolvedAnalysis, "整体分析") : "# 初步分析报告\n\n分析已完成。";
-      await postJson("/api/records/update", {
-        action: "analysis",
-        recordId: savedId,
-        summary: modelAnalysis?.overview || "已完成思维结构分析。",
-        primaryIssue: modelAnalysis?.gaps?.[0] || "暂无明确缺口",
-        structure: resolvedAnalysis?.structure || structure,
-        assessments: resolvedAnalysis?.assessments || assessments,
-        issues: resolvedAnalysis?.gaps || [],
-        report: resolvedAnalysis,
-        reportContent,
-      });
-      setRecords((items) => items.map((item) => item.id === savedId ? { ...item, status: "analyzed", summary: resolvedAnalysis?.overview || "已完成思维结构分析。", primaryIssue: resolvedAnalysis?.gaps?.[0] || "", analysisReportJson: JSON.stringify(resolvedAnalysis || {}), reportContent } : item));
-    }
-  }
-
-  async function submitReview(event: FormEvent) {
-    event.preventDefault();
-    if (!reviewAnswer.trim()) return;
-    const answer = reviewAnswer.trim();
-    setReviewAnswers((items) => [...items, answer]);
-    if (savedId) {
-      void postJson("/api/records/update", {
-        action: "conversation",
-        recordId: savedId,
-        kind: "review",
-        role: "user",
-        content: answer,
-        turnNumber: reviewTurn + 1,
-      });
-      const record = records.find((item) => item.id === savedId);
-      const prompt = modelAnalysis?.questions?.[reviewTurn];
-      const addition = `\n\n## 深度复盘 · 第 ${reviewTurn + 1} 轮\n\n**问题：${prompt?.question || "继续检查当前判断的边界"}**\n\n构建思路：${prompt?.rationale || "从初步分析识别到的缺口继续追问。"}\n\n你的回答：${answer}`;
-      if (record) {
-        const reportContent = `${record.reportContent || (modelAnalysis ? analysisToMarkdown(modelAnalysis, "整体分析") : "# 思维分析报告")}${addition}`;
-        void fetch("/api/records", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: savedId, reportContent }) });
-        setRecords((items) => items.map((item) => item.id === savedId ? { ...item, reportContent } : item));
-      }
-    }
-    setReviewAnswer("");
-    if (reviewTurn === 0) {
-      setReviewTurn(1);
-    } else {
-      if (savedId) { void postJson("/api/records/update", { action: "review_complete", recordId: savedId }); setRecords((items) => items.map((item) => item.id === savedId ? { ...item, status: "reviewed" } : item)); }
-      setFlowPhase("result");
-    }
-  }
-
-  function skipReviewQuestion() {
-    if (reviewTurn === 0) setReviewTurn(1);
-    else { if (savedId) { void postJson("/api/records/update", { action: "review_complete", recordId: savedId }); setRecords((items) => items.map((item) => item.id === savedId ? { ...item, status: "reviewed" } : item)); } setFlowPhase("result"); }
-  }
-
   function resetFlow() {
     setFlowPhase("compose");
     setTitle("");
     setContent("");
     setScene("");
     setSavedId("");
-    setReviewTurn(0);
-    setReviewAnswer("");
-    setReviewAnswers([]);
     setSaveWarning("");
     setRecordSource(""); setRecordSourceUrl(""); setRecordNote(""); setRecordTags([]); setTagDraft(""); setRecordImportance(3);
   }
@@ -813,14 +732,6 @@ export function ThoughtLabApp() {
     const record = records.find((item) => item.id === savedId);
     if (record) setSelectedRecord({ ...record, status: "analyzed", summary: modelAnalysis?.overview || record.summary, primaryIssue: modelAnalysis?.gaps?.[0] || record.primaryIssue, reportContent: modelAnalysis ? analysisToMarkdown(modelAnalysis, "整体分析") : record.reportContent });
     setActivePage("records"); setFlowPhase("compose"); window.scrollTo({ top: 0, behavior: "smooth" });
-  }
-
-  async function beginDeepReview() {
-    setModelLoading(true); setSaveWarning("");
-    const focus = [reviewElement, reviewStandard].filter((item) => !item.startsWith("不指定")).join(" × ") || "整体分析";
-    try { const result = await requestModelAnalysis(content, focus, scene); setModelAnalysis(result); setReviewTurn(0); setReviewAnswers([]); setFlowPhase("review"); }
-    catch (error) { setSaveWarning(error instanceof Error ? error.message : "深度复盘准备失败"); }
-    finally { setModelLoading(false); }
   }
 
   async function saveFrameworkVersion(event: FormEvent) {
@@ -1204,7 +1115,7 @@ export function ThoughtLabApp() {
               <span className="card-kicker">档案状态</span>
               <div className="archive-state">
                 <div><span className="state-done">✓</span><p><strong>原文已保存</strong><small>保留原始输入，不被后续分析覆盖</small></p></div>
-                <div><span className="state-done">✓</span><p><strong>结构已重建</strong><small>8 个思维元素</small></p></div>
+                <div><span className={selectedRecord.reportContent ? "state-done" : "state-wait"}>{selectedRecord.reportContent ? "✓" : "·"}</span><p><strong>完整初步分析</strong><small>按当时启用的基座流程生成并原样归档</small></p></div>
                 <div><span className={["analyzed", "trained", "reviewed"].includes(selectedRecord.status) ? "state-done" : "state-wait"}>{["analyzed", "trained", "reviewed"].includes(selectedRecord.status) ? "✓" : "·"}</span><p><strong>分析报告</strong><small>{selectedRecord.reportContent ? "与原文共同归档" : "可随时选择分析"}</small></p></div>
               </div>
             </article>
@@ -1231,7 +1142,9 @@ export function ThoughtLabApp() {
           note="阅读材料也是思维记录。原文、出处、札记、标签、分析报告与后来批注都在同一条档案中。"
           action={<button className="primary-button compact" onClick={() => go("new")}>＋ 新建 / 导入</button>}
         />
-        <div className="record-toolbar card">
+        <div className="record-library-layout">
+        <aside className="record-folder-rail card"><header><div><span className="eyebrow">LIBRARY</span><h3>记录文件夹</h3></div><button onClick={() => void createRecordFolder()} title="新增文件夹">＋</button></header><nav><button className={activeFolderId === "all" ? "active" : ""} onClick={() => setActiveFolderId("all")}><span>◫</span><strong>全部记录</strong><i>{records.length}</i></button><button className={activeFolderId === "recent" ? "active" : ""} onClick={() => setActiveFolderId("recent")}><span>◷</span><strong>最近 30 天</strong></button><button className={activeFolderId === "unfiled" ? "active" : ""} onClick={() => setActiveFolderId("unfiled")}><span>◇</span><strong>未归档</strong><i>{records.filter((record) => !recordFolderLinks.some((link) => link.recordId === record.id)).length}</i></button></nav><div className="custom-folder-list smart-folder-list"><span>按记录类型</span>{recordScenes.map((scene) => <div key={scene} className={activeFolderId === `scene:${scene}` ? "active" : ""}><button onClick={() => setActiveFolderId(`scene:${scene}`)}><span>◈</span><strong>{scene}</strong><i>{records.filter((record) => record.scene === scene).length}</i></button></div>)}</div><div className="custom-folder-list"><span>我的分类</span>{recordFolders.map((folder) => <div key={folder.id} className={activeFolderId === folder.id ? "active" : ""}><button onClick={() => setActiveFolderId(folder.id)}><span>▱</span><strong>{folder.name}</strong><i>{recordFolderLinks.filter((link) => link.folderId === folder.id).length}</i></button><button title="删除文件夹" onClick={() => void deleteRecordFolder(folder.id)}>×</button></div>)}</div></aside>
+        <section className="record-library-main"><div className="record-toolbar card">
           <label className="search-field">
             <span aria-hidden="true">⌕</span>
             <input aria-label="搜索记录" value={recordQuery} onChange={(event) => setRecordQuery(event.target.value)} placeholder="搜索标题、内容或问题…" />
@@ -1239,7 +1152,7 @@ export function ThoughtLabApp() {
           <div className="filter-chips">
             <button className={`chip ${recordFilter === "all" ? "active" : ""}`} onClick={() => setRecordFilter("all")}>全部</button>
             <button className={`chip ${recordFilter === "integrated" ? "active" : ""}`} onClick={() => setRecordFilter("integrated")}>已融入基座</button>
-            <button className={`chip ${recordFilter === "trained" ? "active" : ""}`} onClick={() => setRecordFilter("trained")}>已深度复盘</button>
+            <button className={`chip ${recordFilter === "trained" ? "active" : ""}`} onClick={() => setRecordFilter("trained")}>已进一步整理</button>
             <button className={`chip ${recordFilter === "review" ? "active" : ""}`} onClick={() => setRecordFilter("review")}>待复盘</button>
             <button className={`chip ${recordFilter === "saved" ? "active" : ""}`} onClick={() => setRecordFilter("saved")}>仅保存</button>
           </div>
@@ -1248,7 +1161,7 @@ export function ThoughtLabApp() {
         </div>
         {selectedRecordIds.length > 0 && <div className="merge-tray card"><span>已选择 {selectedRecordIds.length} 条</span><input value={mergeTitle} onChange={(event) => setMergeTitle(event.target.value)} placeholder="合并后档案名称（可选）" /><button disabled={selectedRecordIds.length < 2} onClick={() => void mergeSelectedRecords()}>合并为新档案</button><button onClick={() => setSelectedRecordIds([])}>取消</button></div>}
         <div className="records-list">
-          {filteredRecords.map((record) => (
+          {organizedRecords.map((record) => (
             <article className="record-card card" key={record.id}>
               <label className="record-select" title="选择后可合并"><input type="checkbox" checked={selectedRecordIds.includes(record.id)} onChange={(event) => setSelectedRecordIds((ids) => event.target.checked ? [...ids, record.id] : ids.filter((id) => id !== record.id))} /><span /></label>
               <button className="record-card-main" onClick={() => setSelectedRecord(record)}>
@@ -1267,17 +1180,18 @@ export function ThoughtLabApp() {
                 <div className="record-bottom">
                   <span><i className="tiny-dot" /> {record.primaryIssue || "等待分析"}</span>
                   <span className={`status-label status-${record.status}`}>
-                    {record.status === "integrated" ? "已融入基座" : record.status === "trained" || record.status === "reviewed" ? "已深度复盘" : record.status === "analyzed" ? "已分析" : "已保存"}
+                    {record.status === "integrated" ? "已融入基座" : record.status === "trained" || record.status === "reviewed" ? "已进一步整理" : record.status === "analyzed" ? "已分析" : "已保存"}
                   </span>
                 </div>
               </div>
               <span className="record-arrow" aria-hidden="true">→</span>
               </button>
-              <div className="record-quick-actions"><button title="修订" aria-label="修订记录" onClick={() => setEditingRecord({ ...record })}>✎</button><button title="移入回收站" aria-label="移入回收站" onClick={() => void moveRecordToTrash(record)}>⌫</button></div>
+              <div className="record-quick-actions"><select aria-label="移动到文件夹" title="移动到文件夹" value={recordFolderLinks.find((link) => link.recordId === record.id)?.folderId || ""} onChange={(event) => void moveRecordToFolder(record.id, event.target.value)}><option value="">未归档</option>{recordFolders.map((folder) => <option value={folder.id} key={folder.id}>{folder.name}</option>)}</select><button title="修订" aria-label="修订记录" onClick={() => setEditingRecord({ ...record })}>✎</button><button title="移入回收站" aria-label="移入回收站" onClick={() => void moveRecordToTrash(record)}>⌫</button></div>
             </article>
           ))}
-          {filteredRecords.length === 0 && <div className="card empty-search">没有找到符合条件的记录。</div>}
+          {organizedRecords.length === 0 && <div className="card empty-search">这个文件夹里还没有符合条件的记录。</div>}
         </div>
+        </section></div>
       </>
     );
   }
@@ -1292,7 +1206,7 @@ export function ThoughtLabApp() {
             <p>可以是一段自己的想法，也可以是书、文章、课程或链接。仅保存不会触发分析，更不会强迫你进入复盘。</p>
           </div>
           <form className="record-compose card" onSubmit={startAnalysis}>
-            <div className="light-mode-banner"><span>轻记录</span><div><strong>默认只保存</strong><p>分析与深度复盘是两个后续选择，可随时退出。</p></div><i>01</i></div>
+            <div className="light-mode-banner"><span>轻记录</span><div><strong>一次分析，原样归档</strong><p>仅保存不会触发分析；选择分析后，页面看到的完整结果就是最终报告，不再二次转录。</p></div><i>01</i></div>
             <label className="field-label primary-capture-field">出处 <span>必填 · 书名、作者、课程、对话；自己的想法可写“个人思考”</span><input required value={recordSource} onChange={(event) => setRecordSource(event.target.value)} placeholder="例如：《批判性思维工具》第三章" /></label>
             <label className="field-label record-text-label">
               记录你的思考 <span>必填 · 粘贴内容会原样保留段落与换行</span>
@@ -1333,20 +1247,20 @@ export function ThoughtLabApp() {
               <button type="button" className="ghost-button" onClick={() => void persistUnifiedRecord(false)}>仅保存，先到这里</button>
               <button className="primary-button" type="submit">保存并做初步分析 <span aria-hidden="true">→</span></button>
             </div>
-            <p className="save-promise"><span aria-hidden="true">✓</span> 两个动作都会先保存原文。初步分析结束后，由你决定是否进入深度复盘。</p>
+            <p className="save-promise"><span aria-hidden="true">✓</span> 两个动作都会先保存原文。初步分析已包含理解路径、结构整理和启发式问题。</p>
           </form>
         </div>
       );
     }
 
     if (flowPhase === "saving") {
-      const steps = ["原文已安全保存", "正在识别思维情境", "正在重建思维结构", "准备质量评估"];
+      const steps = ["原文已安全保存", "正在读取当前思维基座", "正在沿可执行流程分析", "正在原样归档完整报告"];
       return (
         <div className="analysis-loading">
           <div className="analysis-orbit"><span /><i /></div>
-          <span className="eyebrow">先结构，后质量</span>
-          <h1>正在理解你的思考过程…</h1>
-          <p>现在只还原你的思路，不做评价。</p>
+          <span className="eyebrow">ONE PASS · ONE REPORT</span>
+          <h1>正在沿你的思维体系一步步理解…</h1>
+          <p>结果只生成一次：你看到什么，记录里就保存什么。</p>
           <div className="analysis-steps card">
             {steps.map((step, index) => (
               <div key={step} className={index <= analysisStep ? "done" : ""}>
@@ -1359,45 +1273,10 @@ export function ThoughtLabApp() {
       );
     }
 
-    if (flowPhase === "structure") {
-      return (
-        <div className="analysis-page">
-          <div className="analysis-breadcrumb"><span className="done">1 原文保存</span><i /><span className="current">2 结构重建</span><i /><span>3 初步分析</span><i /><span>4 可选深度复盘</span></div>
-          <SectionHeader
-            eyebrow="阶段一 · 不评价"
-            title="我理解你的思考结构是…"
-            note="请先确认系统有没有理解错。修正结构后，再进入质量评估。"
-          />
-          <div className="structure-summary card">
-            <div className="summary-mark">结论</div>
-            <div>
-              <h3>{modelAnalysis?.overview || "系统已完成结构重建。"}</h3>
-              <p>{modelAnalysis?.nextStep || "请确认结构是否符合你的本意。"}</p>
-            </div>
-          </div>
-          <div className="structure-grid">
-            {(modelAnalysis?.structure?.length ? modelAnalysis.structure : structure).map((item, index) => (
-              <article className="structure-card card" key={item.name}>
-                <div><span>{String(index + 1).padStart(2, "0")}</span><strong>{item.name}</strong></div>
-                {editingStructure === item.name
-                  ? <textarea className="structure-editor" value={structureEdits[item.name] ?? item.text} onChange={(event) => setStructureEdits((edits) => ({ ...edits, [item.name]: event.target.value }))} />
-                  : <p>{structureEdits[item.name] ?? item.text}</p>}
-                <button aria-label={`修改${item.name}`} onClick={() => setEditingStructure(editingStructure === item.name ? null : item.name)}>{editingStructure === item.name ? "完成" : "修改"}</button>
-              </article>
-            ))}
-          </div>
-          <div className="sticky-action card">
-            <div><strong>这个结构符合你的本意吗？</strong><span>确认后才会进入证据驱动的质量评估。</span></div>
-            <div><button className="ghost-button" onClick={() => setEditingStructure((modelAnalysis?.structure || structure)[0]?.name || null)}>有几处需要修改</button><button className="primary-button" onClick={confirmStructure}>确认结构，继续评估 →</button></div>
-          </div>
-        </div>
-      );
-    }
-
     if (flowPhase === "assessment") {
       return (
         <div className="analysis-page">
-          <div className="analysis-breadcrumb"><span className="done">1 原文保存</span><i /><span className="done">2 结构重建</span><i /><span className="current">3 初步分析</span><i /><span>4 可选深度复盘</span></div>
+          <div className="analysis-breadcrumb"><span className="done">1 原文保存</span><i /><span className="current">2 完整初步分析</span><i /><span className="done">3 原样归档</span></div>
           <SectionHeader
             eyebrow="阶段二 · 连续理解"
             title="从原文出发，沿着一条路走到本质"
@@ -1414,65 +1293,15 @@ export function ThoughtLabApp() {
           <section className="human-thinking-path">{(modelAnalysis?.reasoningJourney || []).map((item, index) => <article className="card" key={`${item.step}-${index}`}><i>{String(index + 1).padStart(2, "0")}</i><div><span>{item.step}</span><h3>{item.thoughtMove}</h3><p>{item.from}</p><div className="thought-transition"><b>所以我暂时走到：</b>{item.to}</div><details><summary>为什么可以从这里走到下一步？</summary><p>{item.why}</p><small>调用的个人体系：{item.framework}</small></details></div></article>)}</section>
           <section className="turning-points"><article className="card"><span>已经站得住的部分</span>{(modelAnalysis?.strengths || []).map((item) => <p key={item}>＋ {item}</p>)}</article><article className="card"><span>还不能轻易跨过去的部分</span>{(modelAnalysis?.gaps || []).map((item) => <p key={item}>△ {item}</p>)}</article><article className="card"><span>下一步最小行动</span><strong>{modelAnalysis?.nextStep || "继续补充证据。"}</strong></article></section>
           <section className="question-construction-lab"><header><span className="eyebrow">QUESTION MAKING · 学会问题怎样生长</span><h2>问题不是凭空出现的，而是从理解受阻的地方长出来。</h2><p>先读问题；需要时再展开完整构建过程，避免一次承受过多说明。</p></header>{(modelAnalysis?.questions || []).map((item, index) => <article className="card" key={`${item.question}-${index}`}><div className="question-number">Q{index + 1}</div><div><h3>{item.question}</h3><details><summary>展开：这个问题是怎样一步一步长出来的？</summary><div className="question-birth-path"><span>观察原文</span><i>→</i><span>发现缺口</span><i>→</i><span>确定思考动作</span><i>→</i><span>收窄问题</span></div><p>{item.rationale}</p><blockquote>{item.basis}</blockquote><small>仿照方法：先找到一句“还不能直接相信或理解”的话，再问自己缺的是事实、概念、假设、其他观点还是后果；最后把问题写成一个能够用具体证据回答的句子。</small></details></div></article>)}</section>
-          <section className="review-focus-builder card"><div><span className="eyebrow">OPTIONAL FOCUS</span><h2>如果继续，想从哪里深入？</h2><p>可以只选一个专题，也可以组合成“元素 × 标准”。系统会据此重新构建问题和完整提问思路。</p></div><label>思维元素<select value={reviewElement} onChange={(event) => setReviewElement(event.target.value)}><option>不指定元素</option>{elements.map((item) => <option key={item.name}>{item.name}</option>)}</select></label><span>×</span><label>思维标准<select value={reviewStandard} onChange={(event) => setReviewStandard(event.target.value)}><option>不指定标准</option>{qualityScores.map((item) => <option key={item.name}>{item.name}</option>)}</select></label></section>
           <div className="sticky-action card">
-            <div><strong>初步分析已经完成并随记录保存</strong><span>现在可以结束；也可以自愿进入逐问式深度复盘。</span></div>
-            <div><button className="ghost-button" onClick={finishInitialAnalysis}>先到这里</button><button className="ghost-button" disabled={!savedId} onClick={() => { const record = records.find((item) => item.id === savedId); if (record) openIntegration({ ...record, reportContent: modelAnalysis ? analysisToMarkdown(modelAnalysis, "整体分析") : record.reportContent }); }}>判断如何融入基座</button><button className="primary-button" disabled={modelLoading} onClick={() => void beginDeepReview()}>{modelLoading ? "正在构建问题…" : "进入深度复盘 →"}</button></div>
+            <div><strong>页面中的完整初步分析已经原样随记录保存</strong><span>结构理解、推理路径和问题构建思路不再经过第二次转录。</span></div>
+            <div><button className="ghost-button" onClick={finishInitialAnalysis}>完成并查看记录</button><button className="primary-button" disabled={!savedId} onClick={() => { const record = records.find((item) => item.id === savedId); if (record) openIntegration({ ...record, reportContent: modelAnalysis ? analysisToMarkdown(modelAnalysis, "整体分析") : record.reportContent }); }}>判断如何融入基座 →</button></div>
           </div>
         </div>
       );
     }
 
-    if (flowPhase === "review") {
-      const question = modelAnalysis?.questions?.[reviewTurn]
-        || { question: reviewTurn === 0 ? "哪一项证据最可能改变你当前的判断？" : "你还遗漏了谁的观点或哪一种后果？", rationale: "从当前结论反推其改变条件，用于检验判断是否真正开放于证据。", basis: "观点 × 广度，以及原文尚未呈现的反证条件" };
-      return (
-        <div className="coach-page">
-          <div className="coach-header">
-            <button className="back-button" onClick={() => setFlowPhase("assessment")}>← 返回分析</button>
-            <span>深度复盘 · 第 {reviewTurn + 1} / 2 轮</span>
-          </div>
-          <div className="coach-layout">
-            <aside className="coach-context card">
-              <span className="eyebrow">当前焦点</span>
-              <h3>{[reviewElement, reviewStandard].filter((item) => !item.startsWith("不指定")).join(" × ") || "整体分析"}</h3>
-              <p>目标不是反驳自己，而是看见当前框架之外仍然成立的解释。</p>
-              <div className="coach-progress"><i style={{ height: `${reviewTurn === 0 ? 50 : 100}%` }} /></div>
-            </aside>
-            <main className="coach-conversation">
-              <div className="coach-message">
-                <span className="coach-avatar">序</span>
-                <div>
-                  <span>思维教练</span>
-                  <p>{question.question}</p>
-                  <details className="question-rationale" open><summary>这道问题是怎样构建出来的？</summary><p>{question.rationale}</p><small>依据：{question.basis}</small></details>
-                </div>
-              </div>
-              {reviewAnswers.map((answer, index) => (
-                <div className="user-message" key={index}><span>你的回答</span><p>{answer}</p></div>
-              ))}
-              <form className="coach-answer card" onSubmit={submitReview}>
-                <textarea value={reviewAnswer} onChange={(event) => setReviewAnswer(event.target.value)} placeholder="写下你此刻真实的回答…" autoFocus />
-                <div><span>{reviewAnswer.length} 字 · 回答是可选的</span><div><button type="button" className="ghost-button" onClick={skipReviewQuestion}>跳过此问</button><button className="primary-button" type="submit" disabled={!reviewAnswer.trim()}>提交回答，继续 →</button></div></div>
-              </form>
-            </main>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="result-page">
-        <div className="result-hero">
-          <span className="result-check">✓</span>
-          <span className="eyebrow">深度复盘已完成</span>
-          <h1>回答、问题与构建思路都已归入同一条思维档案。</h1>
-          <p>这不是一次强制训练，也不换算成能力分数；它只是为原记录补上新的证据与边界条件。</p>
-        </div>
-        <section className="card review-summary"><span className="eyebrow">本轮留下的回答</span>{reviewAnswers.map((answer, index) => <article key={index}><strong>问题 {index + 1}</strong><p>{answer}</p></article>)}</section>
-        <div className="result-actions"><button className="primary-button" onClick={finishInitialAnalysis}>完成并查看记录</button></div>
-      </div>
-    );
+    return null;
   }
 
   function renderGrowth() {
@@ -1521,7 +1350,6 @@ export function ThoughtLabApp() {
   }
 
   function renderAnalyze() {
-    const focusOptions = ["整体分析", ...elements.map((item) => item.name), ...qualityScores.map((item) => item.name)];
     const questions: Array<{ question: string; rationale: string; basis: string }> = analysisFocus === "目的"
       ? ["我真正想达成什么？", "这个目的是否被更大的目的所约束？", "什么结果能证明目的已经实现？"].map((question) => ({ question, rationale: "从目的元素反推可验证的终点，避免把行动本身误当成目的。", basis: "思维元素：目的 × 标准：清晰性、重要性" }))
       : analysisFocus === "准确性"
@@ -1535,7 +1363,7 @@ export function ThoughtLabApp() {
             <span className="card-kicker">待观照文本</span>
             <label className="analysis-record-link">从思维记录载入<select value={analysisRecordId} onChange={(event) => { const id = event.target.value; setAnalysisRecordId(id); setAnalysisSaveState(""); setModelAnalysis(null); const record = records.find((item) => item.id === id); if (record) setAnalysisText(record.content); setAnalysisComplete(false); }}><option value="">临时分析，不关联记录</option>{records.map((record) => <option value={record.id} key={record.id}>{record.title}</option>)}</select></label>
             <MarkdownComposer value={analysisText} onChange={(next) => { setAnalysisText(next); setAnalysisComplete(false); setAnalysisSaveState(""); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑；也可以上传文件或读取链接……" />
-            <div className="focus-picker"><span>本次重点</span><select value={analysisFocus} onChange={(event) => { setAnalysisFocus(event.target.value); setAnalysisComplete(false); }}>{focusOptions.map((item) => <option key={item}>{item}</option>)}</select></div>
+            <div className="focus-picker base-model-picker"><span>基座模型</span><select value={analysisBaseId} onChange={(event) => { setAnalysisBaseId(event.target.value); setAnalysisComplete(false); }}>{analysisBases.map((item) => <option value={item.id} key={item.id}>{item.name}{item.kind === "meta" ? " · 通用元认知" : " · 领域模型"}</option>)}</select><small>{analysisBases.find((item) => item.id === analysisBaseId)?.description || "选择分析本次文本时要调用的思维基座。"}</small></div>
             {modelError && <p className="form-warning">{modelError}</p>}
             <button className="primary-button" disabled={analysisText.trim().length < 10 || modelLoading} onClick={runModelAnalysis}>{modelLoading ? "DeepSeek 正在快速分析…" : "开始快速分析 →"}</button>
           </article>
@@ -1547,7 +1375,7 @@ export function ThoughtLabApp() {
             <section className="human-thinking-path">{modelAnalysis.reasoningJourney.map((item, index) => <article className="card" key={`${item.step}-${index}`}><i>{String(index + 1).padStart(2, "0")}</i><div><span>{item.step}</span><h3>{item.thoughtMove}</h3><p>{item.from}</p><div className="thought-transition"><b>所以我暂时走到：</b>{item.to}</div><details><summary>为什么可以从这里走到下一步？</summary><p>{item.why}</p><small>调用的个人体系：{item.framework}</small></details></div></article>)}</section>
             <section className="turning-points"><article className="card"><span>已经站得住的部分</span>{modelAnalysis.strengths.map((item) => <p key={item}>＋ {item}</p>)}</article><article className="card"><span>还不能轻易跨过去的部分</span>{modelAnalysis.gaps.map((item) => <p key={item}>△ {item}</p>)}</article><article className="card"><span>下一步最小行动</span><strong>{modelAnalysis.nextStep}</strong></article></section>
             <section className="question-construction-lab"><header><span className="eyebrow">QUESTION MAKING · 启发式问题</span><h2>问题从理解受阻的地方长出来。</h2><p>这组问题及其完整构建思路，会与上面的分析路径一起保存。</p></header>{(modelAnalysis.questions.length ? modelAnalysis.questions : questions).map((item, index) => <article className="card" key={`${item.question}-${index}`}><div className="question-number">Q{index + 1}</div><div><h3>{item.question}</h3><details open><summary>这个问题是怎样一步一步长出来的？</summary><div className="question-birth-path"><span>观察原文</span><i>→</i><span>发现缺口</span><i>→</i><span>确定动作</span><i>→</i><span>收窄问题</span></div><p>{item.rationale}</p><blockquote>{item.basis}</blockquote></details></div></article>)}</section>
-            {analysisFocus !== "整体分析" && <article className="card quick-focus-note"><span className="eyebrow">本次额外聚焦 · {analysisFocus}</span><h2>{modelAnalysis.focusTitle}</h2><p>{modelAnalysis.focusFinding}</p><blockquote>{modelAnalysis.evidence || analysisText.slice(0, 120)}</blockquote></article>}
+            <article className="card quick-focus-note"><span className="eyebrow">本次基座 · {analysisBases.find((item) => item.id === analysisBaseId)?.name || "万象思维基座"}</span><h2>{modelAnalysis.focusTitle}</h2><p>{modelAnalysis.focusFinding}</p><blockquote>{modelAnalysis.evidence || analysisText.slice(0, 120)}</blockquote></article>
             <section className="card quick-analysis-actions"><div><span className="eyebrow">SAVE OR RELEASE</span><h2>{analysisSaveState === "saved" ? "这份初步分析已经归档。" : "这份结果目前只存在于观照室。"}</h2><p>{analysisSaveState === "saved" ? "原文、完整路径、转折点和问题构建思路已经保存到思维记录。" : analysisRecordId ? "只有你确认后，它才会更新所关联的思维记录。" : "可以新建一条思维记录保存它，也可以不保留本次结果。"}</p></div><div>{analysisSaveState === "saved" ? <button className="primary-button" onClick={() => { const record = records.find((item) => item.id === analysisRecordId); if (record) { setSelectedRecord(record); go("records"); } }}>查看已保存记录 →</button> : <><button className="ghost-button" onClick={discardQuickAnalysis}>不保留本次结果</button><button className="primary-button" disabled={analysisSaveState === "saving"} onClick={() => void saveQuickAnalysis()}>{analysisSaveState === "saving" ? "正在保存…" : analysisRecordId ? "保存到关联记录" : "保存为新思维记录"}</button></>}</div></section>
           </section>
         )}
@@ -1751,8 +1579,8 @@ export function ThoughtLabApp() {
               {[['start', '第一次来'], ['import', '导入与归位'], ['analyze', '用体系分析'], ['evolve', '补丁与版本']].map(([id, label]) => <button key={id} className={helpTopic === id ? "active" : ""} onClick={() => setHelpTopic(id as typeof helpTopic)}>{label}<span>→</span></button>)}
             </aside>
             <div className="help-content">
-              {helpTopic === "start" && <><span className="eyebrow">欢迎来到序理</span><h2>这里不是资料仓库，而是你的思维操作系统。</h2><p>最简单的使用顺序是：在「行思录」留下自己的想法或外部知识，在「观照室」按需分析，在「磨砺场」复习旧知或分析今日新材料，最后到「年轮志」看见整座基座怎样长成。</p><div className="guide-map">{[["观星台", "看全貌"], ["行思录", "记录与输入"], ["观照室", "解问题"], ["年轮志", "看演化"], ["拾光橱", "藏句与图"], ["磨砺场", "双轨训练"]].map(([name, note]) => <div key={name}><strong>{name}</strong><span>{note}</span></div>)}</div><div className="guide-tip"><strong>第一次使用建议</strong><p>先保存一条真实记录。你可以就此结束，也可以让系统生成分析报告；深度复盘永远由你主动开始。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("new"); }}>开始第一条记录 →</button></>}
-              {helpTopic === "import" && <><span className="eyebrow">行思录指南</span><h2>知识输入和个人思考，现在属于同一种档案。</h2><ol className="guide-steps"><li><strong>选择来源</strong><p>直接输入、常见办公文档、PDF 或外部链接均可，同时填写出处和原始链接。</p></li><li><strong>边读边整理</strong><p>用富文本工具栏设置标题、加粗、下划线、高光和插图。</p></li><li><strong>写下札记与标签</strong><p>记录它为何重要，并用自己定义的标签和星级整理。</p></li><li><strong>决定是否分析</strong><p>仅保存会立即结束；分析报告会归入同一条记录，但深度复盘仍然可选。</p></li></ol><div className="guide-example"><small>示例</small><strong>《批判性思维工具》关于假设的段落</strong><p>可以标记为「阅读」「假设」和五星，然后选择是否按“假设 × 深度”生成分析报告。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("new"); }}>去行思录 →</button></>}
+              {helpTopic === "start" && <><span className="eyebrow">欢迎来到序理</span><h2>这里不是资料仓库，而是你的思维操作系统。</h2><p>最简单的使用顺序是：在「行思录」留下自己的想法或外部知识，在「观照室」按需分析，在「磨砺场」复习旧知或分析今日新材料，最后到「年轮志」看见整座基座怎样长成。</p><div className="guide-map">{[["观星台", "看全貌"], ["行思录", "记录与输入"], ["观照室", "解问题"], ["年轮志", "看演化"], ["拾光橱", "藏句与图"], ["磨砺场", "双轨训练"]].map(([name, note]) => <div key={name}><strong>{name}</strong><span>{note}</span></div>)}</div><div className="guide-tip"><strong>第一次使用建议</strong><p>先保存一条真实记录。你可以就此结束，也可以生成一次完整初步分析；页面结果会原样进入记录。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("new"); }}>开始第一条记录 →</button></>}
+              {helpTopic === "import" && <><span className="eyebrow">行思录指南</span><h2>知识输入和个人思考，现在属于同一种档案。</h2><ol className="guide-steps"><li><strong>选择来源</strong><p>直接输入、常见办公文档、PDF 或外部链接均可，同时填写出处和原始链接。</p></li><li><strong>边读边整理</strong><p>用富文本工具栏设置标题、加粗、下划线、高光和插图。</p></li><li><strong>写下札记与标签</strong><p>记录它为何重要，并用自己定义的标签和星级整理。</p></li><li><strong>决定是否分析</strong><p>仅保存会立即结束；选择分析后，完整结果会原样归入同一条记录。</p></li></ol><div className="guide-example"><small>示例</small><strong>《批判性思维工具》关于假设的段落</strong><p>可以标记为「阅读」「假设」和五星，再让当前基座流程生成完整初步分析。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("new"); }}>去行思录 →</button></>}
               {helpTopic === "analyze" && <><span className="eyebrow">观照室指南</span><h2>先整体看，再选择一束更聚焦的光。</h2><p>输入决策、论证、阅读笔记或困惑。DeepSeek 会严格使用当前基座：先还原八个思维元素，再只评价有文本证据的“元素 × 标准”组合。</p><div className="guide-example"><small>完整例子</small><strong>问题：我是否应该更换研究方向？</strong><p>先选择“整体分析”，看目的、信息、假设与后果是否完整；再选择“假设”，重点追问“新方向更有价值”依赖哪些尚未验证的前提。</p></div><div className="guide-tip"><strong>怎样读结果</strong><p>“暂不评价”并不是低分，而是原文没有足够证据。最有价值的动作通常是回答系统给出的三条启发式问题。</p></div><button className="primary-button" onClick={() => { setHelpOpen(false); go("analyze"); }}>去观照室 →</button></>}
               {helpTopic === "evolve" && <><span className="eyebrow">演化规则</span><h2>小变化留下补丁，大变化形成版本。</h2><div className="evolution-rule"><div><span>PATCH</span><strong>补丁</strong><p>补充定义、例子、反例、问题模板或使用说明，不改变体系主干。</p></div><div><span>VERSION</span><strong>版本</strong><p>新增元素、标准、关系或能力映射，会改变未来分析方式。</p></div><div><span>HOLD</span><strong>暂存</strong><p>有启发但证据不足，保留出处与札记，等待以后重新检点。</p></div></div><p>每次正式改版都保留旧版本；历史记录继续使用当时的分析基座，不会被新版本回写。</p><button className="primary-button" onClick={() => { setHelpOpen(false); go("history"); }}>查看年轮志 →</button></>}
             </div>

@@ -190,7 +190,9 @@ test("observatory is optional quick analysis and reports mirror the initial resu
   assert.match(app, /保存为新思维记录/);
   assert.match(app, /不保留本次结果/);
   assert.match(app, /同一份整体理解、同一条可执行流程/);
-  assert.match(app, /resolvedAnalysis/);
+  assert.match(app, /reportContent = analysisToMarkdown\(result/);
+  assert.doesNotMatch(app, /flowPhase === "structure"/);
+  assert.doesNotMatch(app, /flowPhase === "review"/);
   assert.match(app, /按初步分析重建/);
   assert.doesNotMatch(app, /带着新回答进入观照室/);
   assert.match(styles, /base-node-rail section \.base-add-node/);
