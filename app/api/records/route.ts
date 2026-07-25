@@ -118,6 +118,7 @@ export async function POST(request: Request) {
         note: payload.note?.trim() || "",
         tagsJson: JSON.stringify((payload.tags || []).slice(0, 20)),
         importance: Math.max(1, Math.min(5, payload.importance || 3)),
+        frameworkVersion: "万象思维基座 · 当前版本",
         nextReviewAt: new Date(Date.now() + 86400000).toISOString(),
       })
       .returning();

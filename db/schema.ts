@@ -164,3 +164,67 @@ export const cabinetItems = sqliteTable("cabinet_items", {
   note: text("note").notNull().default(""),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const baseSpaces = sqliteTable("base_spaces", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  kind: text("kind").notNull().default("domain"),
+  description: text("description").notNull().default(""),
+  scope: text("scope").notNull().default(""),
+  status: text("status").notNull().default("active"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const baseNodes = sqliteTable("base_nodes", {
+  id: text("id").primaryKey(),
+  spaceId: text("space_id").notNull(),
+  parentId: text("parent_id"),
+  nodeType: text("node_type").notNull().default("method"),
+  title: text("title").notNull(),
+  content: text("content").notNull().default(""),
+  operationalJson: text("operational_json").notNull().default("{}"),
+  sortOrder: integer("sort_order").notNull().default(0),
+  status: text("status").notNull().default("active"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const baseNodeLinks = sqliteTable("base_node_links", {
+  id: text("id").primaryKey(),
+  fromNodeId: text("from_node_id").notNull(),
+  toNodeId: text("to_node_id").notNull(),
+  relation: text("relation").notNull().default("related"),
+  label: text("label").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const recordNodeLinks = sqliteTable("record_node_links", {
+  id: text("id").primaryKey(),
+  recordId: text("record_id").notNull(),
+  nodeId: text("node_id").notNull(),
+  relation: text("relation").notNull().default("source"),
+  note: text("note").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const integrationProposals = sqliteTable("integration_proposals", {
+  id: text("id").primaryKey(),
+  recordId: text("record_id").notNull(),
+  status: text("status").notNull().default("draft"),
+  proposalJson: text("proposal_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const baseVersions = sqliteTable("base_versions", {
+  id: text("id").primaryKey(),
+  spaceId: text("space_id").notNull(),
+  versionNumber: integer("version_number").notNull().default(1),
+  title: text("title").notNull(),
+  summary: text("summary").notNull().default(""),
+  snapshotJson: text("snapshot_json").notNull().default("{}"),
+  sourceRecordIdsJson: text("source_record_ids_json").notNull().default("[]"),
+  status: text("status").notNull().default("published"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

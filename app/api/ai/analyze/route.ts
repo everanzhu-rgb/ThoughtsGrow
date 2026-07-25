@@ -1,4 +1,5 @@
 import { deepSeekJson, frameworkBrief } from "@/lib/deepseek";
+import { activeBaseBrief } from "@/lib/base-context";
 
 type AnalysisResult = {
   overview: string;
@@ -82,10 +83,11 @@ export async function POST(request: Request) {
     const text = payload.text?.trim();
     if (!text || text.length < 10) return Response.json({ error: "请至少输入 10 个字。" }, { status: 400 });
     const focus = payload.focus?.trim() || "整体分析";
+    const personalBase = await activeBaseBrief();
     const rawResult = await deepSeekJson<unknown>([
       {
         role: "system",
-        content: `${frameworkBrief}
+        content: `${frameworkBrief}\n${personalBase}
 你是一位极其耐心、严谨、善于教学的中文思维分析师。只能依据用户原文，不进行人格判断，也不能用结论替代推导。
 你的读者暂时不知道怎样思考。请从“原文直接说了什么”开始，像扶着初学者走楼梯一样，一步一步走到对文本的本质理解。任何一步都不得跳跃：每一步都要写清楚从什么信息出发、做了什么认知动作、得到什么中间结论、为什么可以这样移动，以及使用了哪个思维元素与思维标准。语言必须通俗、具体、连贯。
 必须输出 JSON，字段为 overview、strengths、gaps、nextStep、focusTitle、focusFinding、evidence、questions、reasoningJourney、suggestedTitle、suggestedScene、suggestedTags、suggestedNote、structure、assessments。
@@ -96,7 +98,7 @@ suggestedTitle 要简洁具体；suggestedScene 是一个适合作为检索标�
       },
       { role: "user", content: `场景：${payload.scene || "未指定"}\n重点专题：${focus}\n待分析文本：\n${text}` },
     ]);
-    return Response.json({ result: normalizeResult(rawResult), frameworkVersion: "Critical Thinking Base V1.0" });
+    return Response.json({ result: normalizeResult(rawResult), frameworkVersion: "万象思维基座 · 当前发布版" });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "模型分析失败" }, { status: 502 });
   }

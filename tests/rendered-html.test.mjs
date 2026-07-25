@@ -106,3 +106,39 @@ test("build contains the incremental thinking library", async () => {
   assert.doesNotMatch(deepseek, /sk-[a-zA-Z0-9]{16,}/);
   assert.doesNotMatch(`${layout}\n${page}\n${app}`, /codex-preview|Your site is taking shape|react-loading-skeleton/i);
 });
+
+test("records can be compiled into an editable cognitive base", async () => {
+  const [basePage, integrationStudio, versionHistory, baseApi, integrationApi, integrationAi, analysisApi, baseContext, schema, migration, app] = await Promise.all([
+    readFile(new URL("../app/components/CognitiveBasePage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/IntegrationStudio.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/BaseVersionHistory.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/bases/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/integrations/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/integrate/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/base-context.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0007_cognitive_base_engine.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(basePage, /新增领域基座/);
+  assert.match(basePage, /可执行思维程序/);
+  assert.match(basePage, /建立双向关系/);
+  assert.match(integrationStudio, /融合工作台/);
+  assert.match(integrationStudio, /镜像对照/);
+  assert.match(integrationStudio, /接受补丁并发布新版本/);
+  assert.match(versionHistory, /以此版本恢复/);
+  assert.match(versionHistory, /删除版本/);
+  assert.match(baseApi, /restore_version/);
+  assert.match(baseApi, /snapshotJson/);
+  assert.match(integrationApi, /recordNodeLinks/);
+  assert.match(integrationApi, /publishSpace/);
+  assert.match(integrationAi, /个人认知体系编译器/);
+  assert.match(baseContext, /当前正式生效、可编辑的个人思维基座/);
+  assert.match(analysisApi, /activeBaseBrief/);
+  assert.match(schema, /baseSpaces/);
+  assert.match(schema, /integrationProposals/);
+  assert.match(migration, /meta-playbook/);
+  assert.match(app, /融入思维基座/);
+  assert.doesNotMatch(app, /## 四、用思维标准逐项检查/);
+});
