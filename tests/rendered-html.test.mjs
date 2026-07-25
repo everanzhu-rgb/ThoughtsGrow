@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build contains the incremental thinking library", async () => {
-  const [layout, page, app, composer, home, map, heatmap, cabinet, training, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, mergeApi, cabinetApi, digestApi, aiApi, deepseek, hosting, migration, cinematicMigration, unifiedMigration] = await Promise.all([
+  const [layout, page, app, composer, home, map, heatmap, cabinet, training, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, mergeApi, cabinetApi, digestApi, trainingReportsApi, aiApi, deepseek, hosting, migration, cinematicMigration, unifiedMigration, trainingReportMigration] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
@@ -22,12 +22,14 @@ test("build contains the incremental thinking library", async () => {
     readFile(new URL("../app/api/records/merge/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/cabinet/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/training-digest/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/training-reports/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../lib/deepseek.ts", import.meta.url), "utf8"),
     readFile(new URL("../.openai/hosting.json", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0003_furry_lorna_dane.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0004_cinematic_atlas.sql", import.meta.url), "utf8"),
     readFile(new URL("../drizzle/0005_unified_thought_archive.sql", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0006_training_report_library.sql", import.meta.url), "utf8"),
     access(new URL("../dist/server/index.js", import.meta.url)),
     access(new URL("../public/og.png", import.meta.url)),
     access(new URL("../public/home-cinematic.webp", import.meta.url)),
@@ -40,6 +42,8 @@ test("build contains the incremental thinking library", async () => {
   assert.match(app, /观星台 · 体系全貌/);
   assert.match(app, /思维记录与知识输入/);
   assert.match(app, /仅保存，先到这里/);
+  assert.match(app, /全部可选；留空会在初步分析后自动补充/);
+  assert.match(app, /新增情境后按回车/);
   assert.match(app, /送入观照室/);
   assert.match(app, /标签（逗号分隔）/);
   assert.match(app, /观照室 · 体系分析/);
@@ -60,10 +64,16 @@ test("build contains the incremental thinking library", async () => {
   assert.match(cabinetApi, /inspirationFavorites/);
   assert.match(training, /记忆复盘/);
   assert.match(training, /今日三篇/);
+  assert.match(training, /训练报告库/);
+  assert.match(training, /存入训练报告库/);
+  assert.match(training, /api\/materials/);
   assert.match(training, /reviewGrade/);
   assert.match(digestApi, /hacker-news\.firebaseio\.com/);
   assert.match(digestApi, /export\.arxiv\.org/);
   assert.match(digestApi, /feeds\.bbci\.co\.uk/);
+  assert.match(digestApi, /trainingFocus/);
+  assert.match(trainingReportsApi, /trainingReports/);
+  assert.match(trainingReportMigration, /training_reports/);
   assert.match(mergeApi, /mergedFromJson/);
   assert.match(activityApi, /activityEvents/);
   assert.match(trashApi, /deleteAfter/);
@@ -76,6 +86,7 @@ test("build contains the incremental thinking library", async () => {
   assert.match(composer, /富文本/);
   assert.match(composer, /hiliteColor/);
   assert.match(composer, /插入图片/);
+  assert.match(composer, /preservePastedLineBreaks/);
   assert.match(materialsApi, /sourceMaterials/);
   assert.match(materialsApi, /r\.jina\.ai/);
   assert.match(materialsApi, /summaryZh/);
@@ -89,6 +100,8 @@ test("build contains the incremental thinking library", async () => {
   assert.match(aiApi, /deepSeekJson/);
   assert.match(aiApi, /rationale/);
   assert.match(aiApi, /basis/);
+  assert.match(aiApi, /reasoningJourney/);
+  assert.match(aiApi, /suggestedTags/);
   assert.match(deepseek, /DEEPSEEK_API_KEY/);
   assert.doesNotMatch(deepseek, /sk-[a-zA-Z0-9]{16,}/);
   assert.doesNotMatch(`${layout}\n${page}\n${app}`, /codex-preview|Your site is taking shape|react-loading-skeleton/i);

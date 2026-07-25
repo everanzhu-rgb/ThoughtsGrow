@@ -74,6 +74,18 @@ export const trainingTopics = sqliteTable("training_topics", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const trainingReports = sqliteTable("training_reports", {
+  id: text("id").primaryKey(),
+  title: text("title").notNull(),
+  source: text("source").notNull().default(""),
+  sourceUrl: text("source_url").notNull().default(""),
+  domain: text("domain").notNull().default(""),
+  articleExcerpt: text("article_excerpt").notNull().default(""),
+  reportContent: text("report_content").notNull().default(""),
+  analysisJson: text("analysis_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const assessmentFrameworks = sqliteTable("assessment_frameworks", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

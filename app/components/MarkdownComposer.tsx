@@ -8,7 +8,7 @@ import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type ClipboardEvent, type KeyboardEvent } from "react";
 
 type MaterialResponse = { error?: string; material?: { id: string; name: string; sourceUrl?: string | null; extractedText: string; enhanced?: boolean } };
 const previewSchema = { ...defaultSchema, tagNames: [...(defaultSchema.tagNames || []), "u", "mark"], attributes: { ...defaultSchema.attributes, img: ["src", "alt", "title"] } };
@@ -111,6 +111,16 @@ export function MarkdownComposer({ value, onChange, placeholder, sourceChanged, 
     block.innerHTML = "<br>"; document.execCommand("formatBlock", false, `h${marker[1].length}`); const range = document.createRange(); range.selectNodeContents(block); range.collapse(false); selection?.removeAllRanges(); selection?.addRange(range); if (editableRef.current) onChange(editableHtmlToMarkdown(editableRef.current));
   }
 
+  function preservePastedLineBreaks(event: ClipboardEvent<HTMLDivElement>) {
+    const plain = event.clipboardData.getData("text/plain");
+    if (!plain) return;
+    event.preventDefault();
+    document.execCommand("insertText", false, plain.replace(/\r\n?/g, "\n"));
+    queueMicrotask(() => {
+      if (editableRef.current) onChange(editableHtmlToMarkdown(editableRef.current));
+    });
+  }
+
   return <div className={`markdown-composer ${compact ? "compact" : ""}`}>
     <div className="composer-toolbar">
       <div className="composer-tabs"><button type="button" className={view === "visual" ? "active" : ""} onClick={() => setView("visual")}>富文本</button><button type="button" className={view === "write" ? "active" : ""} onClick={() => setView("write")}>纯文本</button><button type="button" className={view === "split" ? "active" : ""} onClick={() => setView("split")}>对照</button><button type="button" className={view === "preview" ? "active" : ""} onClick={() => setView("preview")}>阅读</button></div>
@@ -118,7 +128,7 @@ export function MarkdownComposer({ value, onChange, placeholder, sourceChanged, 
     </div>
     {view === "visual" && <div className="rich-toolbar" aria-label="富文本工具栏"><button type="button" title="标题" onClick={() => format("formatBlock", "h2")}>H2</button><button type="button" title="加粗" onClick={() => format("bold")}><b>B</b></button><button type="button" title="斜体" onClick={() => format("italic")}><i>I</i></button><button type="button" title="下划线" onClick={() => format("underline")}><u>U</u></button><button type="button" title="高光" onClick={() => format("hiliteColor", "#f1d778")}><mark>A</mark></button><button type="button" title="项目列表" onClick={() => format("insertUnorderedList")}>☷</button><input ref={imageRef} type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file, true); }} /><button type="button" title="插入图片" onClick={() => imageRef.current?.click()} disabled={busy}>▧ 图片</button></div>}
     <div className={`composer-body view-${view}`}>
-      {view === "visual" && <div ref={editableRef} className="visual-editor" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" data-placeholder={placeholder} onInput={(event) => onChange(editableHtmlToMarkdown(event.currentTarget))} onKeyUp={handleVisualShortcut} />}
+      {view === "visual" && <div ref={editableRef} className="visual-editor" contentEditable suppressContentEditableWarning role="textbox" aria-multiline="true" data-placeholder={placeholder} onInput={(event) => onChange(editableHtmlToMarkdown(event.currentTarget))} onPaste={preservePastedLineBreaks} onKeyUp={handleVisualShortcut} />}
       {(view === "write" || view === "split") && <textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />}
       {(view === "preview" || view === "split") && <article className="markdown-preview"><ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeRaw, [rehypeSanitize, previewSchema], rehypeKatex]}>{value || "*内容与公式预览会显示在这里。*\n\n行内公式：$E = mc^2$"}</ReactMarkdown></article>}
     </div>

@@ -21,7 +21,7 @@ export async function deepSeekJson<T>(messages: DeepSeekMessage[]): Promise<T> {
       thinking: { type: "disabled" },
       response_format: { type: "json_object" },
       temperature: 0.2,
-      max_tokens: 3000,
+      max_tokens: 6000,
       stream: false,
     }),
     signal: AbortSignal.timeout(60000),

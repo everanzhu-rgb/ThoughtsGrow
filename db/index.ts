@@ -82,6 +82,17 @@ export async function ensureSchema() {
       session_count INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS training_reports (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      source TEXT NOT NULL DEFAULT '',
+      source_url TEXT NOT NULL DEFAULT '',
+      domain TEXT NOT NULL DEFAULT '',
+      article_excerpt TEXT NOT NULL DEFAULT '',
+      report_content TEXT NOT NULL DEFAULT '',
+      analysis_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS assessment_frameworks (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -157,6 +168,7 @@ export async function ensureSchema() {
     d1.prepare("CREATE INDEX IF NOT EXISTS analysis_record_idx ON analysis_versions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS conversation_record_idx ON conversation_turns(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS training_record_idx ON training_sessions(record_id)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS training_reports_created_idx ON training_reports(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS knowledge_imports_created_idx ON knowledge_imports(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS source_materials_created_idx ON source_materials(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS framework_node_notes_node_idx ON framework_node_notes(node_id)"),

@@ -93,6 +93,11 @@ type ModelAnalysis = {
   focusFinding: string;
   evidence: string;
   questions: Array<{ question: string; rationale: string; basis: string }>;
+  reasoningJourney: Array<{ step: string; from: string; thoughtMove: string; to: string; framework: string; why: string }>;
+  suggestedTitle: string;
+  suggestedScene: string;
+  suggestedTags: string[];
+  suggestedNote: string;
   structure: Array<{ name: string; text: string }>;
   assessments: Array<{ element: string; standard: string; finding: string; evidence: string; confidence: string }>;
 };
@@ -444,8 +449,11 @@ function EmptyScore() {
 }
 
 function analysisToMarkdown(result: ModelAnalysis, focus: string) {
-  const questions = result.questions.map((item, index) => `### 问题 ${index + 1}\n\n**${item.question}**\n\n构建思路：${item.rationale}\n\n依据：${item.basis}`).join("\n\n");
-  return `# 思维分析报告\n\n## 整体观照\n\n${result.overview}\n\n## 结构亮点\n\n${result.strengths.map((item) => `- ${item}`).join("\n")}\n\n## 关键缺口\n\n${result.gaps.map((item) => `- ${item}`).join("\n")}\n\n## 专题深描 · ${focus}\n\n${result.focusFinding}\n\n> ${result.evidence}\n\n## 下一步\n\n${result.nextStep}\n\n## 启发式问题与构建思路\n\n${questions}`;
+  const journey = result.reasoningJourney.map((item, index) => `### ${index + 1}. ${item.step}\n\n**从哪里出发：** ${item.from}\n\n**做了什么思考动作：** ${item.thoughtMove}\n\n**走到了哪里：** ${item.to}\n\n**使用的体系：** ${item.framework}\n\n**为什么这一步成立：** ${item.why}`).join("\n\n");
+  const structureText = result.structure.map((item) => `### ${item.name}\n\n${item.text}`).join("\n\n");
+  const assessments = result.assessments.map((item) => `### ${item.element} × ${item.standard}\n\n**观察：** ${item.finding}\n\n**原文依据：** ${item.evidence}\n\n**判断信心：** ${item.confidence}`).join("\n\n");
+  const questions = result.questions.map((item, index) => `### 问题 ${index + 1}\n\n**${item.question}**\n\n#### 这个问题是怎样一步步构建出来的？\n\n${item.rationale}\n\n#### 构建依据\n\n${item.basis}\n\n#### 你可以怎样仿照？\n\n先圈出原文中尚未说明、彼此冲突或证据薄弱的地方，再选择对应的思维元素与标准，确定希望自己完成的认知动作，最后把宽泛的“为什么”收窄为一个能用证据回答的问题。`).join("\n\n");
+  return `# 思维分析报告\n\n> 这份报告不是替你下结论，而是把“怎样从原文一步步走向本质理解”的过程完整摊开。\n\n## 一、先看全貌\n\n${result.overview}\n\n## 二、从无到本质理解：完整思考路径\n\n${journey}\n\n## 三、用八个思维元素重建文本\n\n${structureText}\n\n## 四、用思维标准逐项检查\n\n${assessments}\n\n## 五、已经做得好的地方\n\n${result.strengths.map((item) => `- ${item}`).join("\n")}\n\n## 六、目前最关键的缺口\n\n${result.gaps.map((item) => `- ${item}`).join("\n")}\n\n## 七、专题深描 · ${focus}\n\n${result.focusFinding}\n\n> 直接依据：${result.evidence}\n\n## 八、启发式问题，以及如何学会构建它们\n\n${questions}\n\n## 九、下一步最小行动\n\n${result.nextStep}`;
 }
 
 export function ThoughtLabApp() {
@@ -455,7 +463,9 @@ export function ThoughtLabApp() {
   const [flowPhase, setFlowPhase] = useState<FlowPhase>("compose");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [scene, setScene] = useState("日常思考");
+  const [scene, setScene] = useState("");
+  const [sceneChoices, setSceneChoices] = useState(sceneOptions);
+  const [sceneDraft, setSceneDraft] = useState("");
   const [recordSource, setRecordSource] = useState("");
   const [recordSourceUrl, setRecordSourceUrl] = useState("");
   const [recordNote, setRecordNote] = useState("");
@@ -519,6 +529,17 @@ export function ThoughtLabApp() {
   const [trashRecords, setTrashRecords] = useState<StoredRecord[]>([]);
   const [trashImports, setTrashImports] = useState<KnowledgeImport[]>([]);
   const [timeAnchor] = useState(() => Date.now());
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(window.localStorage.getItem("xuli-scene-tags") || "[]") as string[];
+      if (saved.length) queueMicrotask(() => setSceneChoices(saved));
+    } catch { /* Keep the built-in scene tags. */ }
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("xuli-scene-tags", JSON.stringify(sceneChoices));
+  }, [sceneChoices]);
 
   useEffect(() => {
     fetch("/api/records")
@@ -620,13 +641,20 @@ export function ThoughtLabApp() {
       setSaveWarning("先写下一段完整想法吧，至少 10 个字。");
       return;
     }
+    if (!recordSource.trim()) {
+      setSaveWarning("请填写出处；如果是你自己的想法，可以写“个人思考”或“自己的观察”。");
+      return;
+    }
     setSaveWarning("");
     if (analyze) setFlowPhase("saving");
     setAnalysisStep(0);
 
     let created: StoredRecord;
     try {
-      const response = await postJson("/api/records", { title, content, scene, mode: "record", source: recordSource, sourceUrl: recordSourceUrl, note: recordNote, tags: [...new Set([...recordTags, ...(tagDraft.trim() ? [tagDraft.trim()] : [])])], importance: recordImportance });
+      const initialScene = scene || "待识别";
+      const initialTags = [...new Set([...recordTags, ...(scene ? [scene] : []), ...(tagDraft.trim() ? [tagDraft.trim()] : [])])];
+      const fallbackTitle = content.split(/\r?\n/).map((line) => line.trim()).find(Boolean)?.slice(0, 42) || `${recordSource} · 思维记录`;
+      const response = await postJson("/api/records", { title: title || fallbackTitle, content, scene: initialScene, mode: "record", source: recordSource, sourceUrl: recordSourceUrl, note: recordNote, tags: initialTags, importance: recordImportance });
       if (!response.ok) {
         const data = (await response.json().catch(() => null)) as { error?: string } | null;
         throw new Error(data?.error || "保存失败，请稍后重试。");
@@ -655,6 +683,18 @@ export function ThoughtLabApp() {
       setAnalysisStep(1);
       const result = await requestModelAnalysis(content, "整体分析", scene);
       setModelAnalysis(result);
+      const completedScene = scene || result.suggestedScene || "日常思考";
+      const completedTitle = title.trim() || result.suggestedTitle || created.title;
+      const completedNote = recordNote.trim() || result.suggestedNote || "";
+      const completedTags = [...new Set([...recordTags, completedScene, ...(result.suggestedTags || [])])].filter(Boolean).slice(0, 20);
+      const enrichedResponse = await fetch("/api/records", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: created.id, title: completedTitle, content, scene: completedScene, source: recordSource, sourceUrl: recordSourceUrl, note: completedNote, tags: completedTags, importance: recordImportance }) });
+      if (enrichedResponse.ok) {
+        const enriched = (await enrichedResponse.json()) as { record: StoredRecord };
+        created = enriched.record;
+        setRecords((items) => items.map((item) => item.id === created.id ? created : item));
+        setTitle(completedTitle); setScene(completedScene); setRecordNote(completedNote); setRecordTags(completedTags);
+        if (!sceneChoices.includes(completedScene)) setSceneChoices((items) => [...items, completedScene]);
+      }
       setAnalysisStep(3);
       setFlowPhase("structure");
     } catch (error) {
@@ -725,7 +765,7 @@ export function ThoughtLabApp() {
     setFlowPhase("compose");
     setTitle("");
     setContent("");
-    setScene("日常思考");
+    setScene("");
     setSavedId("");
     setReviewTurn(0);
     setReviewAnswer("");
@@ -1216,33 +1256,27 @@ export function ThoughtLabApp() {
           </div>
           <form className="record-compose card" onSubmit={startAnalysis}>
             <div className="light-mode-banner"><span>轻记录</span><div><strong>默认只保存</strong><p>分析与深度复盘是两个后续选择，可随时退出。</p></div><i>01</i></div>
-            <label className="field-label">
-              标题 <span>可选</span>
-              <input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="给这次思考一个名字" />
-            </label>
-            <fieldset className="scene-field">
-              <legend>这次思考发生在</legend>
-              <div className="scene-options">
-                {sceneOptions.map((item) => (
-                  <button
-                    type="button"
-                    key={item}
-                    className={scene === item ? "active" : ""}
-                    onClick={() => setScene(item)}
-                  >
-                    {item}
-                  </button>
-                ))}
-              </div>
-            </fieldset>
-            <div className="record-source-grid"><label className="field-label">出处 <span>书名、作者、课程、对话或自己的观察</span><input value={recordSource} onChange={(event) => setRecordSource(event.target.value)} placeholder="例如：《批判性思维工具》第三章" /></label><label className="field-label">原始链接 <span>可选</span><input type="url" value={recordSourceUrl} onChange={(event) => setRecordSourceUrl(event.target.value)} placeholder="https://…" /></label></div>
+            <label className="field-label primary-capture-field">出处 <span>必填 · 书名、作者、课程、对话；自己的想法可写“个人思考”</span><input required value={recordSource} onChange={(event) => setRecordSource(event.target.value)} placeholder="例如：《批判性思维工具》第三章" /></label>
             <label className="field-label record-text-label">
-              记录你的思考
+              记录你的思考 <span>必填 · 粘贴内容会原样保留段落与换行</span>
               <MarkdownComposer value={content} onChange={setContent} sourceChanged={(value) => { if (/^https?:\/\//.test(value)) setRecordSourceUrl(value); else if (!recordSource) setRecordSource(value); }} placeholder="写下自己的思考，或导入文档、图片与外部文章。内容可以边输入边排版…" />
               <span className="char-count">{content.length} 字</span>
             </label>
-            <label className="field-label">此刻札记 <span>不是摘要，而是你现在为何想留下它</span><textarea className="record-moment-input" value={recordNote} onChange={(event) => setRecordNote(event.target.value)} placeholder="它触动了什么？与你已有的经验怎样连接？" /></label>
-            <div className="record-organize-row"><div className="tag-editor"><span>标签</span><div>{recordTags.map((tag) => <button type="button" key={tag} onClick={() => setRecordTags((tags) => tags.filter((item) => item !== tag))}>#{tag} ×</button>)}<input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === ",") && tagDraft.trim()) { event.preventDefault(); setRecordTags((tags) => [...new Set([...tags, tagDraft.trim().replace(/,$/, "")])]); setTagDraft(""); } }} placeholder="输入后按回车" /></div></div><div className="importance-picker"><span>重要性</span><div>{[1,2,3,4,5].map((star) => <button type="button" aria-label={`${star} 星`} className={star <= recordImportance ? "active" : ""} key={star} onClick={() => setRecordImportance(star)}>★</button>)}</div></div></div>
+            <details className="optional-record-fields">
+              <summary><strong>补充整理信息</strong><span>全部可选；留空会在初步分析后自动补充</span></summary>
+              <div className="optional-record-body">
+                <div className="record-source-grid"><label className="field-label">标题 <span>可选</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="系统可根据正文自动命名" /></label><label className="field-label">原始链接 <span>可选</span><input type="url" value={recordSourceUrl} onChange={(event) => setRecordSourceUrl(event.target.value)} placeholder="https://…" /></label></div>
+                <fieldset className="scene-field">
+                  <legend>这次思考发生在 <span>可新增、选择或删除；选中后也会成为搜索标签</span></legend>
+                  <div className="scene-options editable-scene-options">
+                    {sceneChoices.map((item) => <span className={scene === item ? "active" : ""} key={item}><button type="button" onClick={() => setScene(scene === item ? "" : item)}>{item}</button><button type="button" aria-label={`删除情境标签 ${item}`} onClick={() => { setSceneChoices((items) => items.filter((choice) => choice !== item)); if (scene === item) setScene(""); }}>×</button></span>)}
+                    <label><input value={sceneDraft} onChange={(event) => setSceneDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && sceneDraft.trim()) { event.preventDefault(); const next = sceneDraft.trim(); setSceneChoices((items) => [...new Set([...items, next])]); setScene(next); setSceneDraft(""); } }} placeholder="新增情境后按回车" /></label>
+                  </div>
+                </fieldset>
+                <label className="field-label">此刻札记 <span>可选 · 系统可补充“为什么值得留下”</span><textarea className="record-moment-input" value={recordNote} onChange={(event) => setRecordNote(event.target.value)} placeholder="它触动了什么？与你已有的经验怎样连接？" /></label>
+                <div className="record-organize-row"><div className="tag-editor"><span>其他标签 · 可选</span><div>{recordTags.map((tag) => <button type="button" key={tag} onClick={() => setRecordTags((tags) => tags.filter((item) => item !== tag))}>#{tag} ×</button>)}<input value={tagDraft} onChange={(event) => setTagDraft(event.target.value)} onKeyDown={(event) => { if ((event.key === "Enter" || event.key === ",") && tagDraft.trim()) { event.preventDefault(); setRecordTags((tags) => [...new Set([...tags, tagDraft.trim().replace(/,$/, "")])]); setTagDraft(""); } }} placeholder="输入后按回车" /></div></div><div className="importance-picker"><span>重要性 · 可选</span><div>{[1,2,3,4,5].map((star) => <button type="button" aria-label={`${star} 星`} className={star <= recordImportance ? "active" : ""} key={star} onClick={() => setRecordImportance(star)}>★</button>)}</div></div></div>
+              </div>
+            </details>
             <details className="mother-prompts">
               <summary>不知道从哪里开始？试试 3 个母问题</summary>
               <div>
