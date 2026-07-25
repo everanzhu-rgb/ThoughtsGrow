@@ -448,7 +448,7 @@ function analysisToMarkdown(result: ModelAnalysis, focus: string) {
   const journey = result.reasoningJourney.map((item, index) => `### ${index + 1}. ${item.step}\n\n**从哪里出发：** ${item.from}\n\n**做了什么思考动作：** ${item.thoughtMove}\n\n**走到了哪里：** ${item.to}\n\n**使用的体系：** ${item.framework}\n\n**为什么这一步成立：** ${item.why}`).join("\n\n");
   const structureText = result.structure.map((item) => `### ${item.name}\n\n${item.text}`).join("\n\n");
   const questions = result.questions.map((item, index) => `### 问题 ${index + 1}\n\n**${item.question}**\n\n#### 这个问题是怎样一步步构建出来的？\n\n${item.rationale}\n\n#### 构建依据\n\n${item.basis}\n\n#### 你可以怎样仿照？\n\n先圈出原文中尚未说明、彼此冲突或证据薄弱的地方，再选择对应的思维元素与标准，确定希望自己完成的认知动作，最后把宽泛的“为什么”收窄为一个能用证据回答的问题。`).join("\n\n");
-  return `# 思维分析报告\n\n> 这份报告不替你下结论，而是把一段文字怎样被逐步理解、检验并转化为可行动认识的过程连成一条路。\n\n## 一、先抓住它真正想说什么\n\n${result.overview}\n\n## 二、沿当前可执行流程，一步一步走到本质\n\n${journey}\n\n## 三、把散落信息连成一条完整思路\n\n${structureText}\n\n## 四、理解发生转折的地方\n\n### 已经站得住的部分\n\n${result.strengths.map((item) => `- ${item}`).join("\n")}\n\n### 还不能轻易跨过去的部分\n\n${result.gaps.map((item) => `- ${item}`).join("\n")}\n\n### 聚焦理解 · ${focus}\n\n${result.focusFinding}\n\n> 我这样判断的直接依据：${result.evidence}\n\n## 五、启发式问题，以及问题是怎样长出来的\n\n${questions}\n\n## 六、把理解变成下一步行动\n\n${result.nextStep}\n\n## 七、准备进入个人思维基座\n\n下一步可以进入“融合工作台”，判断这条记录应当修改元认知基座、领域基座，或同时影响两者。系统会先生成镜像补丁，正式体系不会被自动改写。`;
+  return `# 初步分析报告\n\n> 这份报告就是初步分析页面的完整归档：同一份整体理解、同一条可执行流程、同一组转折点与启发式问题，不进行第二次改写。\n\n## 一、先抓住它真正想说什么\n\n${result.overview}\n\n## 二、沿当前可执行流程，一步一步走到本质\n\n${journey}\n\n## 三、理解发生转折的地方\n\n### 已经站得住的部分\n\n${result.strengths.map((item) => `- ${item}`).join("\n")}\n\n### 还不能轻易跨过去的部分\n\n${result.gaps.map((item) => `- ${item}`).join("\n")}\n\n### 下一步最小行动\n\n${result.nextStep}\n\n## 四、启发式问题，以及问题是怎样长出来的\n\n${questions}\n\n## 五、本次聚焦 · ${focus}\n\n${result.focusFinding}\n\n> 直接依据：${result.evidence}\n\n## 六、已确认的思考结构\n\n${structureText}\n\n## 七、准备进入个人思维基座\n\n可以进入“融合工作台”，判断这条记录应当修改元认知基座、领域基座，或同时影响两者。正式体系不会被自动改写。`;
 }
 
 export function ThoughtLabApp() {
@@ -490,6 +490,7 @@ export function ThoughtLabApp() {
   const [analysisFocus, setAnalysisFocus] = useState("整体分析");
   const [analysisComplete, setAnalysisComplete] = useState(false);
   const [analysisRecordId, setAnalysisRecordId] = useState("");
+  const [analysisSaveState, setAnalysisSaveState] = useState<"" | "saving" | "saved">("");
   const [modelAnalysis, setModelAnalysis] = useState<ModelAnalysis | null>(null);
   const [modelLoading, setModelLoading] = useState(false);
   const [modelError, setModelError] = useState("");
@@ -606,15 +607,11 @@ export function ThoughtLabApp() {
     setModelLoading(true);
     setModelError("");
     setAnalysisComplete(false);
+    setAnalysisSaveState("");
     try {
       const result = await requestModelAnalysis(analysisText, analysisFocus);
       setModelAnalysis(result);
       setAnalysisComplete(true);
-      if (analysisRecordId) {
-        const reportContent = analysisToMarkdown(result, analysisFocus);
-        await postJson("/api/records/update", { action: "analysis", recordId: analysisRecordId, summary: result.overview, primaryIssue: result.gaps[0] || "", structure: result.structure, assessments: result.assessments, issues: result.gaps, report: result, reportContent });
-        setRecords((items) => items.map((item) => item.id === analysisRecordId ? { ...item, status: "analyzed", summary: result.overview, primaryIssue: result.gaps[0] || "", analysisReportJson: JSON.stringify(result), reportContent } : item));
-      }
     } catch (error) {
       setModelError(error instanceof Error ? error.message : "模型分析失败，请重试。");
     } finally {
@@ -623,7 +620,7 @@ export function ThoughtLabApp() {
   }
 
   function openInAnalyze(record: StoredRecord, focus = "整体分析") {
-    setAnalysisText(record.content); setAnalysisFocus(focus); setAnalysisRecordId(record.id); setAnalysisComplete(false); setModelAnalysis(null); go("analyze");
+    setAnalysisText(record.content); setAnalysisFocus(focus); setAnalysisRecordId(record.id); setAnalysisComplete(false); setAnalysisSaveState(""); setModelAnalysis(null); go("analyze");
   }
 
   function openIntegration(record: StoredRecord) {
@@ -633,7 +630,43 @@ export function ThoughtLabApp() {
   }
 
   function openTrainingAnalysis(text: string, focus: string) {
-    setAnalysisText(text); setAnalysisFocus(focus); setAnalysisRecordId(""); setAnalysisComplete(false); setModelAnalysis(null); go("analyze");
+    setAnalysisText(text); setAnalysisFocus(focus); setAnalysisRecordId(""); setAnalysisComplete(false); setAnalysisSaveState(""); setModelAnalysis(null); go("analyze");
+  }
+
+  async function saveQuickAnalysis() {
+    if (!modelAnalysis || !analysisText.trim()) return;
+    setAnalysisSaveState("saving"); setModelError("");
+    try {
+      const reportContent = analysisToMarkdown(modelAnalysis, analysisFocus);
+      let recordId = analysisRecordId;
+      let baseRecord = records.find((item) => item.id === recordId);
+      if (!recordId) {
+        const response = await postJson("/api/records", { title: modelAnalysis.suggestedTitle || `观照记录 · ${new Date().toLocaleDateString("zh-CN")}`, content: analysisText, scene: modelAnalysis.suggestedScene || "观照室快速分析", mode: "record", source: "观照室快速分析", note: modelAnalysis.suggestedNote || "", tags: modelAnalysis.suggestedTags || [], importance: 3 });
+        const data = (await response.json().catch(() => ({}))) as { record?: StoredRecord; error?: string };
+        if (!response.ok || !data.record) throw new Error(data.error || "创建记录失败");
+        baseRecord = data.record; recordId = data.record.id; setAnalysisRecordId(recordId); setRecords((items) => [data.record!, ...items]);
+      }
+      const response = await postJson("/api/records/update", { action: "analysis", recordId, summary: modelAnalysis.overview, primaryIssue: modelAnalysis.gaps[0] || "", structure: modelAnalysis.structure, assessments: modelAnalysis.assessments, issues: modelAnalysis.gaps, report: modelAnalysis, reportContent });
+      if (!response.ok) throw new Error("保存报告失败");
+      setRecords((items) => items.map((item) => item.id === recordId ? { ...(baseRecord || item), status: "analyzed", summary: modelAnalysis.overview, primaryIssue: modelAnalysis.gaps[0] || "", analysisReportJson: JSON.stringify(modelAnalysis), reportContent } : item));
+      setAnalysisSaveState("saved");
+    } catch (error) { setAnalysisSaveState(""); setModelError(error instanceof Error ? error.message : "保存失败"); }
+  }
+
+  function discardQuickAnalysis() {
+    setAnalysisComplete(false); setModelAnalysis(null); setAnalysisSaveState(""); setModelError("");
+  }
+
+  async function rebuildReportFromInitialAnalysis(record: StoredRecord) {
+    try {
+      const result = JSON.parse(record.analysisReportJson || "{}") as ModelAnalysis;
+      if (!result.overview || !Array.isArray(result.reasoningJourney)) throw new Error("这条记录尚无完整的初步分析结果");
+      const reportContent = analysisToMarkdown(result, "整体分析");
+      const response = await fetch("/api/records", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: record.id, reportContent }) });
+      if (!response.ok) throw new Error("重建报告失败");
+      const updated = { ...record, reportContent };
+      setRecords((items) => items.map((item) => item.id === record.id ? updated : item)); setSelectedRecord(updated);
+    } catch (error) { setModelError(error instanceof Error ? error.message : "重建报告失败"); }
   }
 
   async function persistUnifiedRecord(analyze: boolean) {
@@ -708,19 +741,21 @@ export function ThoughtLabApp() {
   async function confirmStructure() {
     setFlowPhase("assessment");
     if (savedId) {
-      const reportContent = modelAnalysis ? analysisToMarkdown(modelAnalysis, "整体分析") : "# 思维分析报告\n\n分析已完成。";
+      const resolvedAnalysis = modelAnalysis ? { ...modelAnalysis, structure: modelAnalysis.structure.map((item) => ({ ...item, text: structureEdits[item.name] ?? item.text })) } : null;
+      if (resolvedAnalysis) setModelAnalysis(resolvedAnalysis);
+      const reportContent = resolvedAnalysis ? analysisToMarkdown(resolvedAnalysis, "整体分析") : "# 初步分析报告\n\n分析已完成。";
       await postJson("/api/records/update", {
         action: "analysis",
         recordId: savedId,
         summary: modelAnalysis?.overview || "已完成思维结构分析。",
         primaryIssue: modelAnalysis?.gaps?.[0] || "暂无明确缺口",
-        structure: (modelAnalysis?.structure || structure).map((item) => ({ ...item, text: structureEdits[item.name] ?? item.text })),
-        assessments: modelAnalysis?.assessments || assessments,
-        issues: modelAnalysis?.gaps || [],
-        report: modelAnalysis,
+        structure: resolvedAnalysis?.structure || structure,
+        assessments: resolvedAnalysis?.assessments || assessments,
+        issues: resolvedAnalysis?.gaps || [],
+        report: resolvedAnalysis,
         reportContent,
       });
-      setRecords((items) => items.map((item) => item.id === savedId ? { ...item, status: "analyzed", summary: modelAnalysis?.overview || "已完成思维结构分析。", primaryIssue: modelAnalysis?.gaps?.[0] || "", analysisReportJson: JSON.stringify(modelAnalysis || {}), reportContent } : item));
+      setRecords((items) => items.map((item) => item.id === savedId ? { ...item, status: "analyzed", summary: resolvedAnalysis?.overview || "已完成思维结构分析。", primaryIssue: resolvedAnalysis?.gaps?.[0] || "", analysisReportJson: JSON.stringify(resolvedAnalysis || {}), reportContent } : item));
     }
   }
 
@@ -1174,7 +1209,7 @@ export function ThoughtLabApp() {
               </div>
             </article>
           </section>
-          {selectedRecord.reportContent ? <section className="card saved-report-card"><div className="saved-report-head"><div><span className="eyebrow">SAVED ANALYSIS</span><h2>随记录保存的分析报告</h2></div><button className="quiet-action" onClick={() => { setEditingTarget("report"); setEditingRecord({ ...selectedRecord }); }}>✎ 编辑报告</button></div><RichTextView>{selectedRecord.reportContent}</RichTextView></section> : <section className="card empty-report-card"><div><span className="eyebrow">OPTIONAL ANALYSIS</span><h2>原文已经安全保存。分析是可选的。</h2><p>你可以现在用完整体系分析，也可以在以后真正需要时再进入观照室。</p></div><button className="primary-button" onClick={() => openInAnalyze(selectedRecord)}>分析这条记录 →</button></section>}
+          {selectedRecord.reportContent ? <section className="card saved-report-card"><div className="saved-report-head"><div><span className="eyebrow">SAVED INITIAL ANALYSIS</span><h2>与初步分析一致的完整报告</h2></div><div><button className="quiet-action" title="用已保存的初步分析结果替换当前报告正文" onClick={() => void rebuildReportFromInitialAnalysis(selectedRecord)}>↻ 按初步分析重建</button><button className="quiet-action" onClick={() => { setEditingTarget("report"); setEditingRecord({ ...selectedRecord }); }}>✎ 编辑报告</button></div></div><RichTextView>{selectedRecord.reportContent}</RichTextView></section> : <section className="card empty-report-card"><div><span className="eyebrow">OPTIONAL ANALYSIS</span><h2>原文已经安全保存。分析是可选的。</h2><p>你可以现在用完整体系分析，也可以在以后真正需要时再进入观照室。</p></div><button className="primary-button" onClick={() => openInAnalyze(selectedRecord)}>分析这条记录 →</button></section>}
           <RecordRelations recordId={selectedRecord.id} onOpenRecord={(id) => { const record = records.find((item) => item.id === id); if (record) setSelectedRecord(record); }} />
           <section className="card annotation-card"><SectionHeader eyebrow="有时批注" title="给原文与报告留下时间刻度" note="批注不会覆盖正文，并会保留写下时的准确时间。" /><div className="annotation-compose"><select id="annotation-target"><option value="record">批注原文</option><option value="report">批注报告</option></select><textarea value={annotationDraft} onChange={(event) => setAnnotationDraft(event.target.value)} placeholder="写下补充、疑问、反例或后来改变的看法…" /><button disabled={!annotationDraft.trim()} onClick={() => { const target = (document.getElementById("annotation-target") as HTMLSelectElement)?.value === "report" ? "report" : "record"; void addAnnotation(target); }}>留下批注</button></div><div className="annotation-timeline">{(() => { try { const notes = JSON.parse(selectedRecord.annotationsJson || "[]") as Array<{ id: string; target: string; content: string; createdAt: string }>; return notes.length ? notes.map((item) => <article key={item.id}><span>{item.target === "report" ? "报告" : "原文"}</span><p>{item.content}</p><time>{new Date(item.createdAt).toLocaleString("zh-CN")}</time></article>) : <p className="empty-ledger">还没有批注。</p>; } catch { return null; } })()}</div></section>
           <section className="card evidence-summary-card">
@@ -1435,7 +1470,7 @@ export function ThoughtLabApp() {
           <p>这不是一次强制训练，也不换算成能力分数；它只是为原记录补上新的证据与边界条件。</p>
         </div>
         <section className="card review-summary"><span className="eyebrow">本轮留下的回答</span>{reviewAnswers.map((answer, index) => <article key={index}><strong>问题 {index + 1}</strong><p>{answer}</p></article>)}</section>
-        <div className="result-actions"><button className="ghost-button" onClick={() => { const record = records.find((item) => item.id === savedId); if (record) openInAnalyze(record); }}>带着新回答进入观照室</button><button className="primary-button" onClick={finishInitialAnalysis}>完成并查看记录</button></div>
+        <div className="result-actions"><button className="primary-button" onClick={finishInitialAnalysis}>完成并查看记录</button></div>
       </div>
     );
   }
@@ -1487,7 +1522,6 @@ export function ThoughtLabApp() {
 
   function renderAnalyze() {
     const focusOptions = ["整体分析", ...elements.map((item) => item.name), ...qualityScores.map((item) => item.name)];
-    const focusIsStandard = qualityScores.some((item) => item.name === analysisFocus);
     const questions: Array<{ question: string; rationale: string; basis: string }> = analysisFocus === "目的"
       ? ["我真正想达成什么？", "这个目的是否被更大的目的所约束？", "什么结果能证明目的已经实现？"].map((question) => ({ question, rationale: "从目的元素反推可验证的终点，避免把行动本身误当成目的。", basis: "思维元素：目的 × 标准：清晰性、重要性" }))
       : analysisFocus === "准确性"
@@ -1495,22 +1529,26 @@ export function ThoughtLabApp() {
         : ["我正在回答的核心问题究竟是什么？", "哪些依据支持它，哪些证据可能推翻它？", "还有谁会从不同立场理解这件事？"].map((question) => ({ question, rationale: "依次检查问题、证据和视角，覆盖一次整体分析最容易遗漏的三个转折点。", basis: "问题 × 清晰性；信息 × 准确性；观点 × 广度" }));
     return (
       <>
-        <SectionHeader eyebrow="观照室 · APPLICATION" title="用整座思维基座，照见一个真实问题" note="先做整体结构扫描，再选择一个元素或标准深入追问。分析依据始终显示在结果旁边。" />
+        <SectionHeader eyebrow="观照室 · QUICK ANALYSIS" title="临时放下一段文字，快速看清它" note="这里调用与思维记录相同的初步分析程序，但不会自动保存。分析完成后，由你决定归入记录或就此放下。" />
         <section className="analysis-studio">
           <article className="card analysis-input-card">
             <span className="card-kicker">待观照文本</span>
-            <label className="analysis-record-link">从思维记录载入<select value={analysisRecordId} onChange={(event) => { const id = event.target.value; setAnalysisRecordId(id); const record = records.find((item) => item.id === id); if (record) { setAnalysisText(record.content); setAnalysisComplete(false); } }}><option value="">不关联记录</option>{records.map((record) => <option value={record.id} key={record.id}>{record.title}</option>)}</select></label>
-            <MarkdownComposer value={analysisText} onChange={(next) => { setAnalysisText(next); setAnalysisComplete(false); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑；也可以上传文件或读取链接……" />
+            <label className="analysis-record-link">从思维记录载入<select value={analysisRecordId} onChange={(event) => { const id = event.target.value; setAnalysisRecordId(id); setAnalysisSaveState(""); setModelAnalysis(null); const record = records.find((item) => item.id === id); if (record) setAnalysisText(record.content); setAnalysisComplete(false); }}><option value="">临时分析，不关联记录</option>{records.map((record) => <option value={record.id} key={record.id}>{record.title}</option>)}</select></label>
+            <MarkdownComposer value={analysisText} onChange={(next) => { setAnalysisText(next); setAnalysisComplete(false); setAnalysisSaveState(""); }} placeholder="输入一段判断、决策、论证、阅读笔记或困惑；也可以上传文件或读取链接……" />
             <div className="focus-picker"><span>本次重点</span><select value={analysisFocus} onChange={(event) => { setAnalysisFocus(event.target.value); setAnalysisComplete(false); }}>{focusOptions.map((item) => <option key={item}>{item}</option>)}</select></div>
             {modelError && <p className="form-warning">{modelError}</p>}
-            <button className="primary-button" disabled={analysisText.trim().length < 10 || modelLoading} onClick={runModelAnalysis}>{modelLoading ? "DeepSeek 正在观照…" : "开始体系分析 →"}</button>
+            <button className="primary-button" disabled={analysisText.trim().length < 10 || modelLoading} onClick={runModelAnalysis}>{modelLoading ? "DeepSeek 正在快速分析…" : "开始快速分析 →"}</button>
           </article>
-          <aside className="card analysis-compass"><span>当前基座</span><strong>LIVE</strong><p>万象元认知基座<br />＋ 全部启用的领域基座<br />每个结论均可追溯到当前节点</p></aside>
+          <aside className="card analysis-compass"><span>工作方式</span><strong>QUICK</strong><p>读取当前可执行流程<br />生成完整初步分析<br />结果默认不进入档案</p></aside>
         </section>
         {analysisComplete && modelAnalysis && (
-          <section className="analysis-report">
-            <article className="card report-overview"><span className="eyebrow">整体观照</span><h2>{modelAnalysis.overview}</h2><div className="report-columns"><div><small>结构亮点</small><p>{modelAnalysis.strengths.join("；") || "暂未识别到足够证据。"}</p></div><div><small>关键缺口</small><p>{modelAnalysis.gaps.join("；") || "暂未识别到足够证据。"}</p></div><div><small>下一步</small><p>{modelAnalysis.nextStep}</p></div></div></article>
-            <article className="card focus-report"><span className="eyebrow">专题深描 · {analysisFocus}</span><h2>{modelAnalysis.focusTitle || (focusIsStandard ? `用“${analysisFocus}”检验这段思考的质量` : `追踪“${analysisFocus}”在文本中的位置`)}</h2><p>{modelAnalysis.focusFinding}</p><p className="evidence-quote">“{modelAnalysis.evidence || analysisText.slice(0, 120)}”</p><div className="heuristic-box"><small>启发式追问与完整构建思路</small>{(modelAnalysis.questions.length ? modelAnalysis.questions : questions).map((item, index) => <article key={`${item.question}-${index}`}><strong>{item.question}</strong><p>{item.rationale}</p><span>构建依据：{item.basis}</span></article>)}</div><p className="analysis-basis">分析依据：当前可编辑个人基座 · {analysisFocus} · DeepSeek{analysisRecordId ? " · 报告已同步保存到关联记录" : ""}</p></article>
+          <section className="analysis-page quick-analysis-result">
+            <section className="thinking-journey-overview card"><div><span className="card-kicker">快速分析 · 先抓住它真正想说什么</span><h3>{modelAnalysis.overview}</h3><p>下面直接呈现与思维记录初步分析相同的完整路径；保存时也会原样归档，而不是另写一份摘要。</p></div><div className="journey-destination"><span>暂时走到</span><strong>{modelAnalysis.focusFinding}</strong></div></section>
+            <section className="human-thinking-path">{modelAnalysis.reasoningJourney.map((item, index) => <article className="card" key={`${item.step}-${index}`}><i>{String(index + 1).padStart(2, "0")}</i><div><span>{item.step}</span><h3>{item.thoughtMove}</h3><p>{item.from}</p><div className="thought-transition"><b>所以我暂时走到：</b>{item.to}</div><details><summary>为什么可以从这里走到下一步？</summary><p>{item.why}</p><small>调用的个人体系：{item.framework}</small></details></div></article>)}</section>
+            <section className="turning-points"><article className="card"><span>已经站得住的部分</span>{modelAnalysis.strengths.map((item) => <p key={item}>＋ {item}</p>)}</article><article className="card"><span>还不能轻易跨过去的部分</span>{modelAnalysis.gaps.map((item) => <p key={item}>△ {item}</p>)}</article><article className="card"><span>下一步最小行动</span><strong>{modelAnalysis.nextStep}</strong></article></section>
+            <section className="question-construction-lab"><header><span className="eyebrow">QUESTION MAKING · 启发式问题</span><h2>问题从理解受阻的地方长出来。</h2><p>这组问题及其完整构建思路，会与上面的分析路径一起保存。</p></header>{(modelAnalysis.questions.length ? modelAnalysis.questions : questions).map((item, index) => <article className="card" key={`${item.question}-${index}`}><div className="question-number">Q{index + 1}</div><div><h3>{item.question}</h3><details open><summary>这个问题是怎样一步一步长出来的？</summary><div className="question-birth-path"><span>观察原文</span><i>→</i><span>发现缺口</span><i>→</i><span>确定动作</span><i>→</i><span>收窄问题</span></div><p>{item.rationale}</p><blockquote>{item.basis}</blockquote></details></div></article>)}</section>
+            {analysisFocus !== "整体分析" && <article className="card quick-focus-note"><span className="eyebrow">本次额外聚焦 · {analysisFocus}</span><h2>{modelAnalysis.focusTitle}</h2><p>{modelAnalysis.focusFinding}</p><blockquote>{modelAnalysis.evidence || analysisText.slice(0, 120)}</blockquote></article>}
+            <section className="card quick-analysis-actions"><div><span className="eyebrow">SAVE OR RELEASE</span><h2>{analysisSaveState === "saved" ? "这份初步分析已经归档。" : "这份结果目前只存在于观照室。"}</h2><p>{analysisSaveState === "saved" ? "原文、完整路径、转折点和问题构建思路已经保存到思维记录。" : analysisRecordId ? "只有你确认后，它才会更新所关联的思维记录。" : "可以新建一条思维记录保存它，也可以不保留本次结果。"}</p></div><div>{analysisSaveState === "saved" ? <button className="primary-button" onClick={() => { const record = records.find((item) => item.id === analysisRecordId); if (record) { setSelectedRecord(record); go("records"); } }}>查看已保存记录 →</button> : <><button className="ghost-button" onClick={discardQuickAnalysis}>不保留本次结果</button><button className="primary-button" disabled={analysisSaveState === "saving"} onClick={() => void saveQuickAnalysis()}>{analysisSaveState === "saving" ? "正在保存…" : analysisRecordId ? "保存到关联记录" : "保存为新思维记录"}</button></>}</div></section>
           </section>
         )}
       </>

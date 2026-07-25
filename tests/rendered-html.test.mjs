@@ -178,3 +178,22 @@ test("growth atlas presents evidence and relationships without capability scorin
   assert.match(growth, /onOpenRecord/);
   assert.doesNotMatch(growth, /综合能力|metric-card|stage-label/);
 });
+
+test("observatory is optional quick analysis and reports mirror the initial result", async () => {
+  const [app, styles] = await Promise.all([
+    readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(app, /观照室 · QUICK ANALYSIS/);
+  assert.match(app, /不会自动保存/);
+  assert.match(app, /保存到关联记录/);
+  assert.match(app, /保存为新思维记录/);
+  assert.match(app, /不保留本次结果/);
+  assert.match(app, /同一份整体理解、同一条可执行流程/);
+  assert.match(app, /resolvedAnalysis/);
+  assert.match(app, /按初步分析重建/);
+  assert.doesNotMatch(app, /带着新回答进入观照室/);
+  assert.match(styles, /base-node-rail section \.base-add-node/);
+  assert.match(styles, /grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(styles, /word-break:keep-all/);
+});
