@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { MarkdownComposer } from "./MarkdownComposer";
 import { DynamicHome } from "./DynamicHome";
 import { FrameworkMindMap } from "./FrameworkMindMap";
-import { ActivityHeatmap } from "./ActivityHeatmap";
+import { GrowthOverview } from "./GrowthOverview";
 import { RichTextView } from "./RichTextView";
 import { TrainingHub } from "./TrainingHub";
 import { CabinetPage } from "./CabinetPage";
@@ -501,11 +501,9 @@ export function ThoughtLabApp() {
   const [structureEdits, setStructureEdits] = useState<Record<string, string>>({});
   const [editingStructure, setEditingStructure] = useState<string | null>(null);
   const [utilityPanel, setUtilityPanel] = useState<"notifications" | "settings" | null>(null);
-  const [growthRange, setGrowthRange] = useState("30");
   const [customTopics, setCustomTopics] = useState<Array<(typeof topics)[number] & { id?: string }>>([]);
   const [helpOpen, setHelpOpen] = useState(false);
   const [helpTopic, setHelpTopic] = useState<"start" | "import" | "analyze" | "evolve">("start");
-  const [growthLayer, setGrowthLayer] = useState<"standards" | "elements" | "capabilities">("standards");
   const [frameworkEditor, setFrameworkEditor] = useState<{
     kind: FrameworkEditorKind;
     label: string;
@@ -523,7 +521,6 @@ export function ThoughtLabApp() {
   const [editingImport, setEditingImport] = useState<KnowledgeImport | null>(null);
   const [trashRecords, setTrashRecords] = useState<StoredRecord[]>([]);
   const [trashImports, setTrashImports] = useState<KnowledgeImport[]>([]);
-  const [timeAnchor] = useState(() => Date.now());
 
   useEffect(() => {
     try {
@@ -1442,45 +1439,7 @@ export function ThoughtLabApp() {
   }
 
   function renderGrowth() {
-    const metricItems = growthLayer === "standards" ? qualityScores : growthLayer === "elements" ? elements.map((item) => ({ name: item.name, score: item.level, change: item.level > 70 ? 4 : 1 })) : capabilities.map((item) => ({ name: item.name, score: item.score, change: item.delta }));
-    const growthSince = new Date(timeAnchor - (Number(growthRange) - 1) * 86400000).toISOString().slice(0, 10);
-    const activeCount = Object.entries(activityByDay).filter(([date]) => date >= growthSince).reduce((sum, [, items]) => sum + items.length, 0);
-    return (
-      <>
-        <SectionHeader
-          eyebrow="长期成长"
-          title="成长分析"
-          note="把质量标准、结构习惯和综合能力分层观察，避免一个总分掩盖真正变化。"
-        />
-        <ActivityHeatmap byDay={activityByDay} days={60} />
-        <div className="layer-tabs" role="tablist" aria-label="成长分析层级">
-          <button className={growthLayer === "standards" ? "active" : ""} onClick={() => setGrowthLayer("standards")}>思维标准</button>
-          <button className={growthLayer === "elements" ? "active" : ""} onClick={() => setGrowthLayer("elements")}>思维元素</button>
-          <button className={growthLayer === "capabilities" ? "active" : ""} onClick={() => setGrowthLayer("capabilities")}>综合能力</button>
-        </div>
-        <section className="card growth-main-card">
-          <div className="growth-card-head">
-            <div><span className="card-kicker">{growthLayer === "standards" ? "9 项质量标准" : growthLayer === "elements" ? "8 个结构元素" : "5 项高阶能力"}</span><h2>{growthLayer === "standards" ? "清晰性与深度提升最明显" : growthLayer === "elements" ? "主动识别假设仍是主要瓶颈" : "反思能力保持领先"}</h2></div>
-            <select aria-label="时间范围" value={growthRange} onChange={(event) => setGrowthRange(event.target.value)}><option value="3">最近 3 天</option><option value="7">最近 7 天</option><option value="15">最近 15 天</option><option value="30">最近 30 天</option><option value="60">最近 60 天</option></select>
-          </div>
-          <GrowthChart large range={Number(growthRange)} byDay={activityByDay} />
-          <div className="growth-insight"><span>观察</span><p>当前视窗覆盖最近 {growthRange} 天。曲线表达的是证据从“萌芽”到“稳定”的成熟过程，不把一次表现武断换算成能力分数；这段时间共留下 {activeCount} 条可追溯痕迹。</p></div>
-        </section>
-        <section className="metrics-grid">
-          {metricItems.map((item, index) => {
-            const stage = item.score >= 78 ? "渐趋稳定" : item.score >= 68 ? "正在成形" : "仍在萌芽";
-            const evidenceCount = Math.max(1, Math.round((item.score - 45) / 8) + (index % 3));
-            return (
-            <article className="card metric-card" key={item.name}>
-              <div><span>{item.name}</span><small>{evidenceCount} 条证据</small></div>
-              <strong className="stage-label">{stage}</strong>
-              <div className="metric-track"><i style={{ width: `${Math.min(92, 18 + evidenceCount * 10)}%` }} /></div>
-              <p>{item.score >= 78 ? "已在多个情境重复出现" : item.score >= 68 ? "已有趋势，仍需更多场景验证" : "证据较少，适合作为下一步观察点"}</p>
-            </article>
-          );})}
-        </section>
-      </>
-    );
+    return <GrowthOverview records={records} byDay={activityByDay} onOpenRecord={(id) => { const record = records.find((item) => item.id === id); if (record) { setSelectedRecord(record); setActivePage("records"); } }} />;
   }
 
   function renderTopics() {

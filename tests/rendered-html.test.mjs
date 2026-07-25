@@ -142,3 +142,21 @@ test("records can be compiled into an editable cognitive base", async () => {
   assert.match(app, /融入思维基座/);
   assert.doesNotMatch(app, /## 四、用思维标准逐项检查/);
 });
+
+test("growth atlas presents evidence and relationships without capability scoring", async () => {
+  const [growth, heatmap, app] = await Promise.all([
+    readFile(new URL("../app/components/GrowthOverview.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ActivityHeatmap.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(app, /GrowthOverview/);
+  assert.match(heatmap, /activity-stats/);
+  assert.match(growth, /最近，你的注意力落在哪里/);
+  assert.match(growth, /可回到原文的证据/);
+  assert.match(growth, /HIDDEN RELATIONS/);
+  assert.match(growth, /建议合并/);
+  assert.match(growth, /可能重复/);
+  assert.match(growth, /观点张力/);
+  assert.match(growth, /onOpenRecord/);
+  assert.doesNotMatch(growth, /综合能力|metric-card|stage-label/);
+});
