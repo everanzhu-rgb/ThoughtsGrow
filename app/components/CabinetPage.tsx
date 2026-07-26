@@ -12,7 +12,7 @@ export function CabinetPage() {
   async function save() { setBusy(true); try { const response = await fetch("/api/cabinet", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind, title, content, source, note, imageUrl }) }); if (response.ok) { const data = await response.json(); setItems((old) => [data.item, ...old]); setTitle(""); setContent(""); setSource(""); setNote(""); setImageUrl(""); } } finally { setBusy(false); } }
   async function remove(item: CabinetItem) { const response = await fetch("/api/cabinet", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: item.id, favoriteId: item.favoriteId }) }); if (response.ok) setItems((old) => old.filter((entry) => entry.id !== item.id)); }
   return <div className="cabinet-page">
-    <header className="cabinet-hero"><span>THE CABINET OF FOUND LIGHT</span><h1>拾光橱</h1><p>把偶然击中你的句子与图像陈列起来。它们不必立即成为方法，也可以只是值得反复凝视的光。</p><button onClick={() => document.getElementById("cabinet-compose")?.scrollIntoView({ behavior: "smooth" })}>放入一件新收藏 ↓</button></header>
+    <header className="cabinet-hero"><span>THE CABINET OF FOUND LIGHT · 拾光橱 · 我的收藏</span><h1 className="gothic-display-title">Cabinet<br /><span>of Light</span></h1><p>把偶然击中你的句子与图像陈列起来。它们不必立即成为方法，也可以只是值得反复凝视的光。</p><button onClick={() => document.getElementById("cabinet-compose")?.scrollIntoView({ behavior: "smooth" })}>放入一件新收藏 ↓</button></header>
     <section className="cabinet-room" aria-label="收藏展示橱">
       <div className="cabinet-glow" aria-hidden="true" />
       {items.length ? items.map((item, index) => <article className={`cabinet-object kind-${item.kind}`} key={item.id} style={{ "--delay": `${(index % 8) * 70}ms` } as React.CSSProperties}>

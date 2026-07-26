@@ -15,7 +15,7 @@ export function ActivityHeatmap({ byDay, days = 60, stats = [] }: { byDay: Recor
   const focusedItems = byDay[focusedKey] || [];
 
   return <section className="activity-card featured-activity card">
-    <div className="activity-head"><div><span className="eyebrow">ACTIVITY CONSTELLATION</span><h2>学习活动星图</h2><p>每一格都是一天。移动或聚焦光点，在右侧阅读当天留下的记录、导入与训练。</p></div><div className="heat-legend"><span>静</span><i /><i /><i /><i /><span>丰</span></div></div>
+    <div className="activity-head"><div><span className="eyebrow">ACTIVITY CONSTELLATION · 学习活动星图</span><h2 className="gothic-section-title">Learning<br /><span>Constellation</span></h2><p>每一格都是一天。移动或聚焦光点，在右侧阅读当天留下的记录、导入与训练。</p></div><div className="heat-legend"><span>静</span><i /><i /><i /><i /><span>丰</span></div></div>
     <div className="heat-stage">
       <div className="heatmap-grid" role="grid" aria-label={`最近 ${days} 天活跃度`}>
         {dates.map((date) => { const key = date.toISOString().slice(0, 10); const items = byDay[key] || []; const level = Math.min(4, items.length); return <button type="button" aria-label={`${date.toLocaleDateString("zh-CN")}，${items.length} 项活动`} className={`heat-cell heat-${level} ${focusedKey === key ? "focused" : ""}`} key={key} onMouseEnter={() => setFocusedKey(key)} onFocus={() => setFocusedKey(key)} onClick={() => setFocusedKey(key)}><i /></button>; })}

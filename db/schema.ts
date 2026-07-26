@@ -267,3 +267,10 @@ export const baseVersions = sqliteTable("base_versions", {
   status: text("status").notNull().default("published"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const visualSettings = sqliteTable("visual_settings", {
+  page: text("page").primaryKey(),
+  objectKey: text("object_key").notNull(),
+  mimeType: text("mime_type").notNull().default("image/jpeg"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

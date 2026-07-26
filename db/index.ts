@@ -211,6 +211,10 @@ export async function ensureSchema() {
       title TEXT NOT NULL, summary TEXT NOT NULL DEFAULT '', snapshot_json TEXT NOT NULL DEFAULT '{}',
       source_record_ids_json TEXT NOT NULL DEFAULT '[]', status TEXT NOT NULL DEFAULT 'published', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS visual_settings (
+      page TEXT PRIMARY KEY, object_key TEXT NOT NULL, mime_type TEXT NOT NULL DEFAULT 'image/jpeg',
+      updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare(`INSERT OR IGNORE INTO base_spaces (id,name,kind,description,scope) VALUES
       ('meta-core','万象思维基座','meta','负责跨领域的问题界定、证据判断、推理、反思与修正。','所有需要理解、判断、决策与创造的情境'),
       ('domain-research','科研与学术','domain','以研究问题、证据链、方法边界和学术交流为核心的领域基座。','研究设计、论文阅读、学术写作与科研决策'),

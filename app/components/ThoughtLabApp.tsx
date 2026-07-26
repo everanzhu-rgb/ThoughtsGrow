@@ -12,6 +12,7 @@ import { CognitiveBasePage, type BaseSpace } from "./CognitiveBasePage";
 import { IntegrationStudio } from "./IntegrationStudio";
 import { BaseVersionHistory } from "./BaseVersionHistory";
 import { RecordRelations } from "./RecordRelations";
+import { PageAtmosphere } from "./PageAtmosphere";
 
 type PageKey =
   | "dashboard"
@@ -1567,7 +1568,10 @@ export function ThoughtLabApp() {
             <button aria-label="通知" className="notification-button" onClick={() => setUtilityPanel("notifications")}>·<i /></button>
           </div>
         </header>
-        <main className={`page-content page-${activePage}`}>{renderPage()}</main>
+        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`}>
+          {activePage !== "dashboard" && <PageAtmosphere page={activePage} title={pageTitle} />}
+          {renderPage()}
+        </main>
       </div>
 
       {helpOpen && (
