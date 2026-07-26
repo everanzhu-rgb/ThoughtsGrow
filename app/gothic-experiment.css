@@ -621,6 +621,9 @@ option { color: #ddd6cc; background: #141415; }
     url("/visuals/xuli-contemplation-hero.png") center 42% / cover;
   box-shadow: 0 28px 85px rgba(0,0,0,.35);
 }
+.page-topics .training-hub-head {
+  background: linear-gradient(105deg, rgba(7,7,8,.9), rgba(14,14,15,.68) 62%, rgba(31,27,22,.34)) !important;
+}
 .training-mode-switch button.active { border-color: #d7cbb7; color: #171717; background: #d7cbb7; }
 .memory-actions button { border-color: rgba(231,222,207,.12); color: #a9a39a; background: #121213; }
 .memory-actions button:hover { border-color: rgba(201,180,144,.35); color: #e3dcd1; background: #211e1a; }
@@ -763,23 +766,23 @@ option { color: #ddd6cc; background: #141415; }
 }
 
 .page-atmosphere-base {
-  opacity: .24;
-  filter: grayscale(.78) contrast(1.08) brightness(.58) sepia(.08);
+  opacity: .48;
+  filter: grayscale(.62) contrast(1.1) brightness(.76) sepia(.07);
   transform: scale(1.015);
   animation: page-atmosphere-breathe 24s ease-in-out infinite alternate;
 }
 
 .page-atmosphere-reveal {
-  opacity: .62;
-  filter: grayscale(.44) contrast(1.08) brightness(.82) sepia(.09);
-  mask-image: radial-gradient(circle 250px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.82) 30%, transparent 72%);
-  -webkit-mask-image: radial-gradient(circle 250px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.82) 30%, transparent 72%);
+  opacity: .82;
+  filter: grayscale(.3) contrast(1.1) brightness(.98) sepia(.08);
+  mask-image: radial-gradient(circle 300px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.88) 34%, transparent 76%);
+  -webkit-mask-image: radial-gradient(circle 300px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.88) 34%, transparent 76%);
 }
 
 .page-atmosphere-vignette {
   background:
-    linear-gradient(90deg, rgba(7,7,8,.96) 0%, rgba(7,7,8,.84) 34%, rgba(7,7,8,.54) 67%, rgba(7,7,8,.72) 100%),
-    linear-gradient(180deg, rgba(7,7,8,.45), rgba(7,7,8,.22) 45%, rgba(7,7,8,.88));
+    linear-gradient(90deg, rgba(7,7,8,.86) 0%, rgba(7,7,8,.7) 34%, rgba(7,7,8,.37) 67%, rgba(7,7,8,.5) 100%),
+    linear-gradient(180deg, rgba(7,7,8,.3), rgba(7,7,8,.12) 45%, rgba(7,7,8,.69));
 }
 
 .page-atmosphere-grain {
@@ -872,13 +875,13 @@ option { color: #ddd6cc; background: #141415; }
 .page-framework .base-canvas,
 .page-integration .base-canvas {
   border-color: rgba(226,217,201,.11);
-  background: rgba(12,12,13,.9) !important;
+  background: rgba(12,12,13,.8) !important;
   box-shadow: 0 25px 80px rgba(0,0,0,.36);
 }
 .page-framework .base-node-rail,
 .page-integration .base-node-rail {
   border-color: rgba(226,217,201,.09);
-  background: rgba(15,15,16,.92) !important;
+  background: rgba(15,15,16,.84) !important;
 }
 .page-framework .base-node-stage,
 .page-integration .base-node-stage { color: #d7d0c6; }
@@ -889,7 +892,7 @@ option { color: #ddd6cc; background: #141415; }
 .page-framework .base-links-grid > section,
 .page-integration .base-links-grid > section {
   border-color: rgba(226,217,201,.09);
-  background: rgba(22,22,23,.9) !important;
+  background: rgba(22,22,23,.82) !important;
 }
 .page-framework .base-source-list article,
 .page-framework .base-relation,
@@ -918,7 +921,7 @@ option { color: #ddd6cc; background: #141415; }
 .page-growth .relation-panel {
   color: #d8d1c7;
   border-color: rgba(226,217,201,.1);
-  background: rgba(16,16,17,.91) !important;
+  background: rgba(16,16,17,.82) !important;
   box-shadow: 0 28px 80px rgba(0,0,0,.34);
 }
 .page-growth .growth-section-head p { color: #8f8981; }
@@ -963,6 +966,130 @@ option { color: #ddd6cc; background: #141415; }
 }
 .page-cabinet .cabinet-room { background: rgba(8,8,9,.8) !important; }
 
+/* Final legibility pass: luminous stone, aged gold and no deep-green copy. */
+.page-content:not(.page-dashboard) {
+  --ink: #ddd5ca;
+  --muted: #a49c91;
+  --sage: #b58b54;
+  --sage-dark: #c7a263;
+  --line: rgba(225,214,195,.13);
+}
+
+.page-content:not(.page-dashboard) .card {
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.035), transparent 44%),
+    rgba(18,18,19,.82) !important;
+}
+
+.page-content:not(.page-dashboard) .eyebrow,
+.page-content:not(.page-dashboard) .card-kicker,
+.page-content:not(.page-dashboard) .growth-section-head span,
+.page-content:not(.page-dashboard) .base-node-stage header span,
+.page-content:not(.page-dashboard) .cabinet-hero > span,
+.page-content:not(.page-dashboard) .training-hub-head > span,
+.page-content:not(.page-dashboard) .version-stage > header span {
+  color: #c8a566 !important;
+  text-shadow: 0 0 22px rgba(194,151,82,.16);
+}
+
+.page-content:not(.page-dashboard) .text-button,
+.page-content:not(.page-dashboard) .back-button,
+.page-content:not(.page-dashboard) a {
+  color: #c5a16b;
+}
+
+.page-content:not(.page-dashboard) p,
+.page-content:not(.page-dashboard) small,
+.page-content:not(.page-dashboard) label {
+  border-color: rgba(226,216,198,.11);
+}
+
+.gothic-display-title {
+  margin: 14px 0 19px !important;
+  color: #ead7ad !important;
+  font-family: "Old English Text MT", "UnifrakturCook", "Cinzel Decorative", "Copperplate Gothic", Georgia, serif !important;
+  font-size: clamp(64px, 8.2vw, 132px) !important;
+  font-weight: 400 !important;
+  line-height: .78 !important;
+  letter-spacing: -.035em !important;
+  text-shadow:
+    0 1px 0 #fff2cf,
+    0 3px 0 rgba(91,61,24,.72),
+    0 15px 38px rgba(0,0,0,.5),
+    0 0 46px rgba(190,145,76,.12);
+}
+
+.training-hub-head .gothic-display-title { font-size: clamp(62px, 7vw, 108px) !important; }
+.cabinet-hero .gothic-display-title { font-size: clamp(70px, 9vw, 140px) !important; }
+
+/* Version history now shares the same translucent nocturnal workbench. */
+.page-history .version-ledger { background: transparent !important; }
+.page-history .version-hero {
+  border: 1px solid rgba(226,215,195,.11);
+  background: linear-gradient(108deg, rgba(8,8,9,.94), rgba(16,16,16,.72) 62%, rgba(35,29,22,.38)) !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,.38);
+}
+.page-history .version-hero p,
+.page-history .version-count span { color: #a79e92; }
+.page-history .version-count strong { color: #d6b77c; text-shadow: 0 0 28px rgba(199,156,85,.2); }
+.page-history .version-layout {
+  color: #d9d1c6;
+  border-color: rgba(226,217,201,.12);
+  background: rgba(12,12,13,.8) !important;
+  box-shadow: 0 25px 80px rgba(0,0,0,.36);
+}
+.page-history .version-sidebar {
+  border-color: rgba(226,217,201,.09);
+  background: rgba(15,15,16,.84) !important;
+}
+.page-history .version-sidebar label,
+.page-history .version-sidebar button small,
+.page-history .version-stage > header p,
+.page-history .version-diff-list p,
+.page-history .version-sources p,
+.page-history .version-snapshot article p,
+.page-history .version-empty { color: #9a9287; }
+.page-history .version-sidebar select,
+.page-history .version-sidebar button {
+  color: #bdb4a8;
+  border-color: rgba(226,217,201,.1);
+  background: rgba(24,24,25,.76);
+}
+.page-history .version-sidebar button.active {
+  color: #eadfcf;
+  border: 1px solid rgba(194,155,91,.28);
+  background: rgba(69,51,29,.58);
+  box-shadow: 0 10px 28px rgba(0,0,0,.25);
+}
+.page-history .version-sidebar button i,
+.page-history .version-snapshot > section > span { color: #c5a16a; }
+.page-history .version-stage { background: rgba(14,14,15,.56); }
+.page-history .version-diff-summary,
+.page-history .version-diff-summary div,
+.page-history .version-sources article,
+.page-history .version-snapshot > section,
+.page-history .version-snapshot article {
+  border-color: rgba(226,217,201,.1);
+}
+.page-history .version-diff-list article,
+.page-history .version-snapshot > section,
+.page-history .version-sources article {
+  color: #d4ccc1;
+  background: rgba(25,25,26,.72);
+}
+.page-history .version-diff-list article span {
+  color: #d9bb83;
+  background: rgba(122,89,42,.28);
+}
+.page-history .version-diff-list .removed span {
+  color: #d3a49a;
+  background: rgba(116,61,52,.28);
+}
+.page-history .version-diff-list .changed span {
+  color: #dfc18b;
+  background: rgba(133,96,42,.28);
+}
+
 @keyframes page-atmosphere-breathe {
   from { transform: scale(1.015) translate3d(0,0,0); }
   to { transform: scale(1.055) translate3d(-.7%,-.4%,0); }
@@ -977,7 +1104,8 @@ option { color: #ddd6cc; background: #141415; }
   .page-atmosphere-base,
   .page-atmosphere-reveal { background-position: 65% center; }
   .page-atmosphere-vignette {
-    background: linear-gradient(180deg, rgba(7,7,8,.7), rgba(7,7,8,.78) 50%, rgba(7,7,8,.94));
+    background: linear-gradient(180deg, rgba(7,7,8,.52), rgba(7,7,8,.56) 50%, rgba(7,7,8,.79));
   }
+  .gothic-display-title { font-size: clamp(54px, 16vw, 86px) !important; }
   .page-atmosphere-controls { right: 13px; bottom: 72px; }
 }
