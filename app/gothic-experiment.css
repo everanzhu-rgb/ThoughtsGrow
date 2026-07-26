@@ -356,19 +356,41 @@ option { color: #ddd6cc; background: #141415; }
   color: #f0ece4;
   background: #070708;
 }
-.home-hero { min-height: calc(100vh - 66px); }
+.home-hero {
+  --spot-x: -999px;
+  --spot-y: -999px;
+  --spot-radius: clamp(180px, 21vw, 300px);
+  min-height: calc(100vh - 66px);
+}
 .home-hero::before {
   background-image:
     linear-gradient(90deg, rgba(4,4,5,.96) 0%, rgba(4,4,5,.77) 38%, rgba(4,4,5,.18) 69%, rgba(4,4,5,.28) 100%),
     linear-gradient(0deg, #070708 0%, transparent 34%),
-    url("/visuals/xuli-contemplation-hero.png");
+    var(--home-hero-image, url("/visuals/xuli-female-portrait-hero.png"));
   background-position: center;
-  filter: saturate(.42) contrast(1.12) brightness(.83);
+  filter: grayscale(.78) sepia(.08) saturate(.34) contrast(1.16) brightness(.65);
   animation: gothic-cinematic-drift 32s ease-in-out infinite alternate;
+}
+.home-hero-reveal {
+  position: absolute;
+  z-index: -2;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(90deg, rgba(4,4,5,.9) 0%, rgba(4,4,5,.57) 38%, rgba(4,4,5,.05) 72%, rgba(4,4,5,.18) 100%),
+    linear-gradient(0deg, #070708 0%, transparent 34%),
+    var(--home-hero-image, url("/visuals/xuli-female-portrait-hero.png"));
+  background-position: center;
+  background-size: cover;
+  filter: grayscale(.18) sepia(.1) saturate(.7) contrast(1.08) brightness(.96);
+  -webkit-mask-image: radial-gradient(circle var(--spot-radius) at var(--spot-x) var(--spot-y), #000 0%, #000 38%, rgba(0,0,0,.78) 60%, rgba(0,0,0,.38) 76%, rgba(0,0,0,.1) 89%, transparent 100%);
+  mask-image: radial-gradient(circle var(--spot-radius) at var(--spot-x) var(--spot-y), #000 0%, #000 38%, rgba(0,0,0,.78) 60%, rgba(0,0,0,.38) 76%, rgba(0,0,0,.1) 89%, transparent 100%);
+  animation: gothic-cinematic-drift 32s ease-in-out infinite alternate;
+  will-change: mask-image, -webkit-mask-image, transform;
 }
 .home-hero::after {
   background:
-    radial-gradient(360px circle at var(--mx) var(--my), rgba(207,190,159,.12), transparent 66%),
+    radial-gradient(clamp(215px, 25vw, 355px) circle at var(--mx) var(--my), rgba(207,190,159,.11), transparent 67%),
     linear-gradient(110deg, transparent 42%, rgba(132,164,153,.035));
 }
 .home-film-grain { opacity: .16; mix-blend-mode: soft-light; }
@@ -387,12 +409,60 @@ option { color: #ddd6cc; background: #141415; }
 }
 .home-hero h1 em { color: #b8aa95; }
 .home-hero-copy > p { color: rgba(229,223,213,.62); }
+.home-hero-copy > .home-overline,
+.home-hero-copy > h1,
+.home-hero-copy > p,
+.home-primary-actions,
+.home-art-controls {
+  opacity: 0;
+  animation: gothic-hero-reveal 1.05s cubic-bezier(.16,1,.3,1) forwards;
+}
+.home-hero-copy > .home-overline { animation-delay: .12s; }
+.home-hero-copy > h1 { animation-delay: .24s; }
+.home-hero-copy > p { animation-delay: .39s; }
+.home-primary-actions { animation-delay: .53s; }
+.home-art-controls { animation-delay: .66s; }
 .home-launch {
   border-color: #ddd4c5;
   color: #101011;
   background: #ded7cc;
 }
 .home-quiet-link { color: #aaa399; border-color: rgba(225,217,203,.22); }
+
+.home-art-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 23px;
+}
+.home-art-controls input { display: none; }
+.home-art-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 13px;
+  border: 1px solid rgba(224,214,197,.16);
+  border-radius: 999px;
+  color: #9f988d;
+  background: rgba(8,8,9,.36);
+  backdrop-filter: blur(12px);
+}
+.home-art-controls button:hover {
+  border-color: rgba(211,192,159,.38);
+  color: #e3dcd1;
+  background: rgba(38,34,29,.66);
+}
+.home-art-controls button > span { color: #b69567; font-size: 17px; }
+.home-art-controls .home-art-reset { padding-inline: 11px; border-color: transparent; background: transparent; }
+.home-art-controls small {
+  flex-basis: 100%;
+  min-height: 14px;
+  color: #66615a;
+  font-size: 9px;
+  letter-spacing: .035em;
+}
 
 .home-data-constellation > div {
   border: 1px solid rgba(230,223,211,.09);
@@ -601,6 +671,10 @@ option { color: #ddd6cc; background: #141415; }
   from { opacity: 0; transform: translate3d(0, 14px, 0); filter: blur(5px); }
   to { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
 }
+@keyframes gothic-hero-reveal {
+  from { opacity: 0; transform: translateY(24px); filter: blur(10px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
 @keyframes gothic-cinematic-drift {
   from { transform: scale(1.015) translate3d(0,0,0); }
   to { transform: scale(1.065) translate3d(-1.1%,-.7%,0); }
@@ -626,7 +700,13 @@ option { color: #ddd6cc; background: #141415; }
   .home-hero::before {
     background-image:
       linear-gradient(180deg, rgba(4,4,5,.32), rgba(4,4,5,.84) 58%, #070708 100%),
-      url("/visuals/xuli-contemplation-hero.png");
+      var(--home-hero-image, url("/visuals/xuli-female-portrait-hero.png"));
+    background-position: 68% center;
+  }
+  .home-hero-reveal {
+    background-image:
+      linear-gradient(180deg, rgba(4,4,5,.18), rgba(4,4,5,.66) 65%, #070708 100%),
+      var(--home-hero-image, url("/visuals/xuli-female-portrait-hero.png"));
     background-position: 68% center;
   }
   .home-data-constellation > div:nth-child(n) { transform: none; }
