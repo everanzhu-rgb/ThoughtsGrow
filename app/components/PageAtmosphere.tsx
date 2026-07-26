@@ -6,48 +6,15 @@ const DEFAULT_ART: Record<string, string> = {
   framework: "/visuals/xuli-framework-portrait.png",
   analyze: "/visuals/xuli-analyze-portrait.png",
   history: "/visuals/xuli-history-portrait.png",
-  records: "/visuals/xuli-records-portrait.png",
+  records: "/visuals/xuli-trash-portrait.png",
   growth: "/visuals/xuli-growth-portrait.png",
   topics: "/visuals/xuli-topics-portrait.png",
   cabinet: "/visuals/xuli-cabinet-portrait.png",
   new: "/visuals/xuli-new-portrait.png",
-  trash: "/visuals/xuli-trash-portrait.png",
+  trash: "/visuals/xuli-records-portrait.png",
   knowledge: "/visuals/xuli-records-portrait.png",
   integration: "/visuals/xuli-framework-portrait.png",
 };
-
-const DB_NAME = "xuli-visuals";
-const STORE_NAME = "page-backgrounds";
-
-function openVisualDatabase() {
-  return new Promise<IDBDatabase>((resolve, reject) => {
-    const request = window.indexedDB.open(DB_NAME, 1);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(STORE_NAME)) request.result.createObjectStore(STORE_NAME);
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-async function readCustomArt(page: string) {
-  const database = await openVisualDatabase();
-  return new Promise<string | undefined>((resolve, reject) => {
-    const request = database.transaction(STORE_NAME, "readonly").objectStore(STORE_NAME).get(page);
-    request.onsuccess = () => resolve(typeof request.result === "string" ? request.result : undefined);
-    request.onerror = () => reject(request.error);
-  }).finally(() => database.close());
-}
-
-async function writeCustomArt(page: string, image?: string) {
-  const database = await openVisualDatabase();
-  return new Promise<void>((resolve, reject) => {
-    const store = database.transaction(STORE_NAME, "readwrite").objectStore(STORE_NAME);
-    const request = image ? store.put(image, page) : store.delete(page);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error);
-  }).finally(() => database.close());
-}
 
 async function prepareImage(file: File) {
   const objectUrl = URL.createObjectURL(file);
@@ -76,24 +43,36 @@ async function prepareImage(file: File) {
 export function PageAtmosphere({ page, title }: { page: string; title: string }) {
   const defaultArt = DEFAULT_ART[page] ?? DEFAULT_ART.framework;
   const [image, setImage] = useState(defaultArt);
+  const [serverImage, setServerImage] = useState<string | null>(null);
   const [custom, setCustom] = useState(false);
+  const [serverUploading, setServerUploading] = useState(false);
   const [status, setStatus] = useState("");
   const [visibility, setVisibility] = useState(.62);
   const layerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const serverFileRef = useRef<HTMLInputElement>(null);
   const rawPointer = useRef({ x: -999, y: -999 });
   const smoothPointer = useRef({ x: -999, y: -999 });
 
   useEffect(() => {
     let cancelled = false;
-    readCustomArt(page).then((stored) => {
-      if (!cancelled && stored) {
-        setImage(stored);
+    fetch(`/api/visual-settings?page=${encodeURIComponent(page)}`)
+      .then((response) => response.ok ? response.json() as Promise<{ imageUrl?: string | null }> : { imageUrl: null })
+      .catch(() => ({ imageUrl: null }))
+      .then((remote) => {
+      if (cancelled) return;
+      const remoteImage = remote.imageUrl || null;
+      setServerImage(remoteImage);
+      if (remoteImage) {
+        setImage(remoteImage);
         setCustom(true);
+      } else {
+        setImage(defaultArt);
+        setCustom(false);
       }
-    }).catch(() => undefined);
+    });
     return () => { cancelled = true; };
-  }, [page]);
+  }, [defaultArt, page]);
 
   useEffect(() => {
     let frame = 0;
@@ -145,12 +124,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
       const prepared = await prepareImage(file);
       setImage(prepared);
       setCustom(true);
-      try {
-        await writeCustomArt(page, prepared);
-        setStatus(`已保存为「${title}」的专属背景`);
-      } catch {
-        setStatus("图片已应用；浏览器未能永久保存它");
-      }
+      setStatus(`已临时应用于「${title}」；刷新页面后会恢复`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "图片处理失败，请换一张试试");
     } finally {
@@ -158,11 +132,39 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     }
   }
 
+  async function uploadToServer(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
+      setStatus("请选择 15 MB 以内的 JPG、PNG 或 WebP 图片");
+      event.target.value = "";
+      return;
+    }
+    setServerUploading(true);
+    setStatus("正在上传服务器并设为此页默认背景…");
+    try {
+      const form = new FormData();
+      form.set("page", page);
+      form.set("file", file);
+      const response = await fetch("/api/visual-settings", { method: "POST", body: form });
+      const payload = await response.json() as { imageUrl?: string; error?: string };
+      if (!response.ok || !payload.imageUrl) throw new Error(payload.error || "上传失败");
+      setServerImage(payload.imageUrl);
+      setImage(payload.imageUrl);
+      setCustom(true);
+      setStatus(`已上传服务器，并设为「${title}」的共享背景`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "服务器上传失败");
+    } finally {
+      setServerUploading(false);
+      event.target.value = "";
+    }
+  }
+
   async function reset() {
-    await writeCustomArt(page).catch(() => undefined);
-    setImage(defaultArt);
-    setCustom(false);
-    setStatus("已恢复默认雕塑背景");
+    setImage(serverImage || defaultArt);
+    setCustom(Boolean(serverImage));
+    setStatus(serverImage ? "已恢复服务器默认背景" : "已恢复内置雕塑背景");
   }
 
   function changeVisibility(value: number) {
@@ -185,10 +187,12 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     </div>
     <div className={`page-atmosphere-controls ${custom ? "has-custom-art" : ""}`}>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} />
+      <input ref={serverFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadToServer} />
       <label className="page-visibility-control"><span>背景</span><input type="range" min="35" max="100" step="1" value={Math.round(visibility * 100)} onChange={(event) => changeVisibility(Number(event.target.value) / 100)} aria-label={`${title}背景可见度`} /><output>{Math.round(visibility * 100)}%</output></label>
-      <button type="button" onClick={() => fileRef.current?.click()} aria-label={`更换${title}背景`}><span aria-hidden="true">◐</span> 更换本页背景</button>
+      <button type="button" onClick={() => fileRef.current?.click()} aria-label={`临时更换${title}背景`}><span aria-hidden="true">◐</span> 本机更换</button>
+      <button type="button" disabled={serverUploading} onClick={() => serverFileRef.current?.click()} aria-label={`上传${title}服务器背景`}><span aria-hidden="true">⇧</span> {serverUploading ? "上传中" : "上传服务器"}</button>
       {custom && <button type="button" className="page-atmosphere-reset" onClick={() => void reset()}>恢复默认</button>}
-      <small aria-live="polite">{status || "仅保存在当前设备"}</small>
+      <small aria-live="polite">{status || "本机更换仅在本次浏览生效；也可上传为共享背景"}</small>
     </div>
   </>;
 }

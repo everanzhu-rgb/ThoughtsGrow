@@ -44,3 +44,5 @@ next-env.d.ts
 /work/
 .codex-dev.out
 .codex-dev.err
+.codex-dev.log
+.codex-dev.err.log

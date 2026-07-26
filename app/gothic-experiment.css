@@ -5,9 +5,9 @@
 
 @font-face {
   font-family: "Xuli Fraktur";
-  src: url("/fonts/UnifrakturCook-Bold.ttf") format("truetype");
+  src: url("/fonts/UnifrakturMaguntia-Book.ttf") format("truetype");
   font-style: normal;
-  font-weight: 700;
+  font-weight: 400;
   font-display: swap;
 }
 
@@ -802,6 +802,16 @@ option { color: #ddd6cc; background: #141415; }
   background-repeat: no-repeat;
 }
 
+/* These two portraits were composed vertically. Keeping the whole carving in
+   frame is more important than filling every pixel of the viewport. */
+.page-framework .page-atmosphere-base,
+.page-framework .page-atmosphere-reveal,
+.page-growth .page-atmosphere-base,
+.page-growth .page-atmosphere-reveal {
+  background-position: right center;
+  background-size: contain;
+}
+
 .page-atmosphere-base {
   opacity: var(--page-art-opacity, .62);
   filter: grayscale(.62) contrast(1.1) brightness(.76) sepia(.07);
@@ -1048,7 +1058,7 @@ option { color: #ddd6cc; background: #141415; }
   color: transparent !important;
   font-family: "Xuli Fraktur", "Old English Text MT", Georgia, serif !important;
   font-size: clamp(64px, 8.2vw, 132px) !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   line-height: .78 !important;
   letter-spacing: -.035em !important;
   background: linear-gradient(118deg, #fff1c8 0%, #d9b56e 27%, #8f6635 48%, #f4dda4 72%, #b48143 100%);
@@ -1084,7 +1094,7 @@ option { color: #ddd6cc; background: #141415; }
   color: transparent !important;
   font-family: "Xuli Fraktur", "Old English Text MT", Georgia, serif !important;
   font-size: clamp(52px, 5.6vw, 88px) !important;
-  font-weight: 700 !important;
+  font-weight: 400 !important;
   line-height: .8 !important;
   letter-spacing: -.025em !important;
   background: linear-gradient(120deg, #f8e7bd, #c49351 38%, #f0d494 67%, #916431);
@@ -1283,4 +1293,148 @@ option { color: #ddd6cc; background: #141415; }
   }
   .gothic-display-title { font-size: clamp(54px, 16vw, 86px) !important; }
   .page-atmosphere-controls { right: 13px; bottom: 72px; }
+}
+
+/* The archive room should still reveal its full portrait below the cards. */
+.page-trash {
+  min-height: calc(100vh - 66px);
+  padding-bottom: 180px;
+}
+.page-trash .page-atmosphere-base,
+.page-trash .page-atmosphere-reveal {
+  background-position: right top;
+  background-size: contain;
+}
+.page-trash .page-atmosphere-vignette {
+  background:
+    linear-gradient(90deg, rgba(7,7,8,.78), rgba(7,7,8,.42) 58%, rgba(7,7,8,.18)),
+    linear-gradient(180deg, rgba(7,7,8,.18), transparent 58%, rgba(7,7,8,.32));
+}
+.page-trash .trash-column {
+  border-color: rgba(226,217,201,.12);
+  background:
+    linear-gradient(145deg, rgba(255,255,255,.025), transparent 46%),
+    rgba(15,15,16,.62) !important;
+  backdrop-filter: blur(10px);
+}
+
+/* New-record supplementary fields: one continuous dark writing desk instead
+   of a pale legacy form embedded in the nocturnal theme. */
+.page-new .optional-record-fields {
+  overflow: hidden;
+  border-color: rgba(221,203,171,.15);
+  background:
+    radial-gradient(circle at 92% 0, rgba(183,139,75,.1), transparent 34%),
+    rgba(14,14,15,.76);
+  box-shadow: inset 0 1px rgba(255,239,209,.035);
+}
+.page-new .optional-record-fields > summary {
+  color: #dfd4c4;
+  background: linear-gradient(90deg, rgba(177,132,70,.08), transparent 58%);
+}
+.page-new .optional-record-fields > summary span,
+.page-new .tag-editor > span,
+.page-new .importance-picker > span { color: #aa9d8b; }
+.page-new .optional-record-body { border-color: rgba(221,203,171,.1); }
+.page-new .optional-record-body input,
+.page-new .optional-record-body select,
+.page-new .optional-record-body textarea,
+.page-new .tag-editor > div {
+  color: #e2d9cc;
+  border-color: rgba(221,203,171,.14);
+  background: rgba(8,8,9,.6);
+}
+.page-new .tag-editor button,
+.page-new .scene-options button,
+.page-new .importance-picker button {
+  color: #cdb487;
+  border-color: rgba(207,175,123,.16);
+  background: linear-gradient(145deg, rgba(177,132,70,.14), rgba(255,255,255,.025));
+}
+.page-new .tag-editor button:hover,
+.page-new .scene-options button:hover,
+.page-new .importance-picker button:hover,
+.page-new .scene-options button.active,
+.page-new .importance-picker button.active {
+  color: #fff0cd;
+  border-color: rgba(221,185,126,.42);
+  background: linear-gradient(145deg, rgba(186,139,72,.34), rgba(75,57,36,.42));
+}
+
+/* Full-site mobile guardrails. Existing page-specific breakpoints remain in
+   charge of composition; these rules prevent overflow and keep controls usable. */
+html, body { max-width: 100%; overflow-x: hidden; }
+.page-content img,
+.page-content svg,
+.page-content video { max-width: 100%; }
+
+@media (max-width: 900px) {
+  .page-content { min-width: 0; }
+  .section-header,
+  .compose-head,
+  .training-hub-head,
+  .cabinet-hero,
+  .version-hero { gap: 18px; }
+  .page-atmosphere-controls { max-width: calc(100vw - 32px); }
+}
+
+@media (max-width: 720px) {
+  .page-content {
+    width: 100%;
+    padding-left: 15px;
+    padding-right: 15px;
+    padding-bottom: 118px;
+  }
+  .gothic-display-title {
+    font-size: clamp(48px, 15vw, 76px) !important;
+    line-height: .86 !important;
+    letter-spacing: -.02em !important;
+  }
+  .gothic-section-title {
+    font-size: clamp(42px, 12vw, 64px) !important;
+    line-height: .88 !important;
+  }
+  .gothic-display-title > span,
+  .gothic-section-title > span,
+  .home-gothic-title em { margin-left: 12px; }
+  .page-atmosphere-controls {
+    right: 10px;
+    bottom: 74px;
+    left: 10px;
+    max-width: none;
+    flex-wrap: wrap;
+    justify-content: center;
+    border-radius: 18px;
+  }
+  .page-atmosphere-controls .page-visibility-control { flex: 1 1 150px; }
+  .page-atmosphere-controls .page-visibility-control input { width: min(30vw, 120px); }
+  .page-atmosphere-controls button { min-height: 40px; }
+  .page-atmosphere-controls small { display: none; }
+  .page-framework .page-atmosphere-base,
+  .page-framework .page-atmosphere-reveal,
+  .page-growth .page-atmosphere-base,
+  .page-growth .page-atmosphere-reveal,
+  .page-trash .page-atmosphere-base,
+  .page-trash .page-atmosphere-reveal {
+    background-position: center top;
+    background-size: contain;
+  }
+  .page-trash { padding-bottom: 210px; }
+  .page-trash .trash-grid,
+  .page-new .record-source-grid,
+  .page-new .record-organize-row { grid-template-columns: minmax(0, 1fr); }
+  .page-new .optional-record-fields > summary { align-items: flex-start; }
+  .page-new .record-organize-row { gap: 14px; }
+  .page-new .scene-options,
+  .page-new .compose-actions,
+  .page-new .record-toolbar { flex-wrap: wrap; }
+  .mobile-nav button,
+  .compose-actions button,
+  .page-atmosphere-controls button,
+  .training-mode-switch button,
+  .record-detail-actions button,
+  .trash-column button,
+  select,
+  input[type="button"],
+  input[type="submit"] { min-height: 44px; }
 }
