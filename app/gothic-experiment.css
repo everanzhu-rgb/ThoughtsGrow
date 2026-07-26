@@ -722,3 +722,262 @@ option { color: #ddd6cc; background: #141415; }
     transition-duration: .01ms !important;
   }
 }
+
+/* Per-module cinematic portrait system. The image remains behind every working
+   surface; only the quiet halo under the cursor reveals its fuller tonal range. */
+.page-content:not(.page-dashboard) {
+  position: relative;
+  isolation: isolate;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(rgba(255,255,255,.016) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.011) 1px, transparent 1px) !important;
+  background-size: 72px 72px, 72px 72px !important;
+}
+
+.page-atmosphere {
+  --page-spot-x: -999px;
+  --page-spot-y: -999px;
+  position: fixed;
+  inset: 66px 0 0 236px;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: #080809;
+}
+
+.page-atmosphere-base,
+.page-atmosphere-reveal,
+.page-atmosphere-vignette,
+.page-atmosphere-grain {
+  position: absolute;
+  inset: 0;
+}
+
+.page-atmosphere-base,
+.page-atmosphere-reveal {
+  background-image: var(--page-atmosphere-image);
+  background-position: 72% center;
+  background-size: cover;
+  background-repeat: no-repeat;
+}
+
+.page-atmosphere-base {
+  opacity: .24;
+  filter: grayscale(.78) contrast(1.08) brightness(.58) sepia(.08);
+  transform: scale(1.015);
+  animation: page-atmosphere-breathe 24s ease-in-out infinite alternate;
+}
+
+.page-atmosphere-reveal {
+  opacity: .62;
+  filter: grayscale(.44) contrast(1.08) brightness(.82) sepia(.09);
+  mask-image: radial-gradient(circle 250px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.82) 30%, transparent 72%);
+  -webkit-mask-image: radial-gradient(circle 250px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.82) 30%, transparent 72%);
+}
+
+.page-atmosphere-vignette {
+  background:
+    linear-gradient(90deg, rgba(7,7,8,.96) 0%, rgba(7,7,8,.84) 34%, rgba(7,7,8,.54) 67%, rgba(7,7,8,.72) 100%),
+    linear-gradient(180deg, rgba(7,7,8,.45), rgba(7,7,8,.22) 45%, rgba(7,7,8,.88));
+}
+
+.page-atmosphere-grain {
+  opacity: .12;
+  mix-blend-mode: soft-light;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.72' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+
+.page-atmosphere-controls {
+  position: fixed;
+  right: 26px;
+  bottom: 24px;
+  z-index: 18;
+  max-width: 250px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid rgba(224,213,194,.11);
+  border-radius: 999px;
+  color: #948d83;
+  background: rgba(10,10,11,.72);
+  box-shadow: 0 15px 42px rgba(0,0,0,.3);
+  backdrop-filter: blur(18px);
+  opacity: .62;
+  transition: opacity .2s ease, border-color .2s ease, transform .2s ease;
+}
+
+.page-atmosphere-controls:hover,
+.page-atmosphere-controls:focus-within {
+  opacity: 1;
+  border-color: rgba(208,189,155,.27);
+  transform: translateY(-2px);
+}
+
+.page-atmosphere-controls input { display: none; }
+.page-atmosphere-controls button {
+  padding: 7px 10px;
+  white-space: nowrap;
+  color: #b8b0a5;
+  border-radius: 999px;
+  background: transparent;
+  font-size: 9px;
+}
+.page-atmosphere-controls button:hover { color: #f0e7d8; background: rgba(255,255,255,.055); }
+.page-atmosphere-controls .page-atmosphere-reset { color: #827a70; }
+.page-atmosphere-controls small {
+  position: absolute;
+  right: 6px;
+  bottom: calc(100% + 7px);
+  width: max-content;
+  max-width: 240px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  color: #8e877d;
+  background: rgba(10,10,11,.82);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s ease;
+}
+.page-atmosphere-controls:hover small,
+.page-atmosphere-controls:focus-within small { opacity: 1; }
+
+/* Framework: remove the legacy light workbench and let the carved portrait sit
+   behind a dark, translucent operating surface. */
+.page-framework .base-workbench,
+.page-integration .base-workbench {
+  background: transparent !important;
+}
+.page-framework .base-hero,
+.page-integration .base-hero {
+  border: 1px solid rgba(226,215,195,.11);
+  background: linear-gradient(108deg, rgba(8,8,9,.97), rgba(16,16,16,.8) 63%, rgba(30,27,23,.5)) !important;
+  box-shadow: 0 30px 90px rgba(0,0,0,.38);
+}
+.page-framework .base-space-tabs > div button,
+.page-integration .base-space-tabs > div button,
+.page-framework .base-space-intro,
+.page-integration .base-space-intro {
+  color: #b9b2a8;
+  border-color: rgba(226,217,201,.1);
+  background: rgba(18,18,19,.84) !important;
+}
+.page-framework .base-space-tabs button.active,
+.page-integration .base-space-tabs button.active {
+  color: #eee7dc;
+  border-color: rgba(189,158,107,.42);
+  background: #28231d !important;
+}
+.page-framework .base-canvas,
+.page-integration .base-canvas {
+  border-color: rgba(226,217,201,.11);
+  background: rgba(12,12,13,.9) !important;
+  box-shadow: 0 25px 80px rgba(0,0,0,.36);
+}
+.page-framework .base-node-rail,
+.page-integration .base-node-rail {
+  border-color: rgba(226,217,201,.09);
+  background: rgba(15,15,16,.92) !important;
+}
+.page-framework .base-node-stage,
+.page-integration .base-node-stage { color: #d7d0c6; }
+.page-framework .base-node-content > p,
+.page-integration .base-node-content > p,
+.page-framework .base-space-intro p,
+.page-integration .base-space-intro p { color: #948d84; }
+.page-framework .base-links-grid > section,
+.page-integration .base-links-grid > section {
+  border-color: rgba(226,217,201,.09);
+  background: rgba(22,22,23,.9) !important;
+}
+.page-framework .base-source-list article,
+.page-framework .base-relation,
+.page-integration .base-source-list article,
+.page-integration .base-relation { border-color: rgba(226,217,201,.08); }
+.page-framework .base-source-compose input,
+.page-framework .base-source-compose select,
+.page-framework .base-source-compose button,
+.page-framework .base-link-compose select,
+.page-integration .base-source-compose input,
+.page-integration .base-source-compose select,
+.page-integration .base-source-compose button,
+.page-integration .base-link-compose select {
+  color: #c4bdb2;
+  border-color: rgba(226,217,201,.11);
+  background: #171718;
+}
+
+/* Growth: the evidence view now belongs to the same nocturnal sculpture room. */
+.page-growth .growth-overview { background: transparent !important; }
+.page-growth .growth-overview-hero {
+  border-bottom: 1px solid rgba(226,217,201,.09);
+  background: linear-gradient(105deg, rgba(7,7,8,.97), rgba(14,14,15,.78) 62%, rgba(31,27,22,.42)) !important;
+}
+.page-growth .focus-panel,
+.page-growth .relation-panel {
+  color: #d8d1c7;
+  border-color: rgba(226,217,201,.1);
+  background: rgba(16,16,17,.91) !important;
+  box-shadow: 0 28px 80px rgba(0,0,0,.34);
+}
+.page-growth .growth-section-head p { color: #8f8981; }
+.page-growth .growth-section-head span { color: #a48761; }
+.page-growth .growth-section-head select,
+.page-growth .graph-tools button {
+  color: #bbb2a5;
+  border-color: rgba(226,217,201,.12);
+  background: #19191a;
+}
+.page-growth .focus-chart {
+  border-color: rgba(226,217,201,.09);
+  background:
+    repeating-linear-gradient(to bottom, transparent 0, transparent 109px, rgba(226,217,201,.055) 110px),
+    rgba(10,10,11,.68);
+}
+.page-growth .focus-bars button { border-color: rgba(226,217,201,.14); }
+.page-growth .focus-bars button > strong,
+.page-growth .focus-y-axis,
+.page-growth .focus-count { color: #aaa298; }
+.page-growth .focus-bars button > i { background: linear-gradient(to top, #4a4033, #a27e51); box-shadow: 0 15px 28px rgba(0,0,0,.25); }
+.page-growth .focus-bars button:hover > i,
+.page-growth .focus-bars button.active > i { background: linear-gradient(to top, #5d4a32, #c3a16a); }
+.page-growth .relation-workbench {
+  border-color: rgba(226,217,201,.09);
+  background: rgba(11,11,12,.88);
+}
+.page-growth .relation-canvas {
+  background:
+    radial-gradient(circle at center, rgba(157,128,86,.11), transparent 35%),
+    linear-gradient(rgba(226,217,201,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(226,217,201,.035) 1px, transparent 1px),
+    rgba(9,9,10,.8);
+  background-size: auto, 42px 42px, 42px 42px, auto;
+}
+.page-growth .relation-nodes text { fill: #a9a197; }
+
+.page-cabinet,
+.page-cabinet .cabinet-page { background: transparent !important; }
+.page-cabinet .cabinet-hero {
+  background: linear-gradient(90deg, rgba(7,7,8,.97), rgba(7,7,8,.62), rgba(7,7,8,.28)) !important;
+}
+.page-cabinet .cabinet-room { background: rgba(8,8,9,.8) !important; }
+
+@keyframes page-atmosphere-breathe {
+  from { transform: scale(1.015) translate3d(0,0,0); }
+  to { transform: scale(1.055) translate3d(-.7%,-.4%,0); }
+}
+
+@media (max-width: 900px) {
+  .page-atmosphere { left: 205px; }
+}
+
+@media (max-width: 720px) {
+  .page-atmosphere { inset: 58px 0 0; }
+  .page-atmosphere-base,
+  .page-atmosphere-reveal { background-position: 65% center; }
+  .page-atmosphere-vignette {
+    background: linear-gradient(180deg, rgba(7,7,8,.7), rgba(7,7,8,.78) 50%, rgba(7,7,8,.94));
+  }
+  .page-atmosphere-controls { right: 13px; bottom: 72px; }
+}
