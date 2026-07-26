@@ -48,6 +48,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
   const [serverUploading, setServerUploading] = useState(false);
   const [status, setStatus] = useState("");
   const [visibility, setVisibility] = useState(.62);
+  const [artScale, setArtScale] = useState(1);
   const layerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const serverFileRef = useRef<HTMLInputElement>(null);
@@ -103,8 +104,10 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     try {
       const stored = Number(window.localStorage.getItem(`xuli:page-visibility:${page}:v1`));
       if (stored >= .35 && stored <= 1) window.setTimeout(() => setVisibility(stored), 0);
+      const storedScale = Number(window.localStorage.getItem(`xuli:page-scale:${page}:v1`));
+      if (storedScale >= .65 && storedScale <= 1.6) window.setTimeout(() => setArtScale(storedScale), 0);
     } catch {
-      // Visibility remains adjustable for the current session.
+      // Display controls remain adjustable for the current session.
     }
   }, [page]);
 
@@ -172,10 +175,18 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     try { window.localStorage.setItem(`xuli:page-visibility:${page}:v1`, String(value)); } catch { /* session-only */ }
   }
 
+  function changeArtScale(value: number) {
+    setArtScale(value);
+    try { window.localStorage.setItem(`xuli:page-scale:${page}:v1`, String(value)); } catch { /* session-only */ }
+  }
+
   const style = {
     "--page-atmosphere-image": `url("${image}")`,
     "--page-art-opacity": visibility,
     "--page-reveal-opacity": Math.min(1, visibility + .28),
+    "--page-art-scale": artScale,
+    "--page-art-scale-start": artScale * 1.015,
+    "--page-art-scale-end": artScale * 1.055,
   } as CSSProperties;
 
   return <>
@@ -189,6 +200,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} />
       <input ref={serverFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadToServer} />
       <label className="page-visibility-control"><span>背景</span><input type="range" min="35" max="100" step="1" value={Math.round(visibility * 100)} onChange={(event) => changeVisibility(Number(event.target.value) / 100)} aria-label={`${title}背景可见度`} /><output>{Math.round(visibility * 100)}%</output></label>
+      <label className="page-size-control"><span>大小</span><input type="range" min="65" max="160" step="1" value={Math.round(artScale * 100)} onChange={(event) => changeArtScale(Number(event.target.value) / 100)} aria-label={`${title}背景图片大小`} /><output>{Math.round(artScale * 100)}%</output></label>
       <button type="button" onClick={() => fileRef.current?.click()} aria-label={`临时更换${title}背景`}><span aria-hidden="true">◐</span> 本机更换</button>
       <button type="button" disabled={serverUploading} onClick={() => serverFileRef.current?.click()} aria-label={`上传${title}服务器背景`}><span aria-hidden="true">⇧</span> {serverUploading ? "上传中" : "上传服务器"}</button>
       {custom && <button type="button" className="page-atmosphere-reset" onClick={() => void reset()}>恢复默认</button>}

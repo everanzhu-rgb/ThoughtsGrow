@@ -473,7 +473,8 @@ option { color: #ddd6cc; background: #141415; }
 }
 
 .home-visibility-control,
-.page-visibility-control {
+.page-visibility-control,
+.page-size-control {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -487,7 +488,8 @@ option { color: #ddd6cc; background: #141415; }
   backdrop-filter: blur(12px);
 }
 .home-visibility-control input,
-.page-visibility-control input {
+.page-visibility-control input,
+.page-size-control input {
   width: 92px;
   height: 3px;
   margin: 0;
@@ -495,7 +497,8 @@ option { color: #ddd6cc; background: #141415; }
   cursor: ew-resize;
 }
 .home-visibility-control output,
-.page-visibility-control output {
+.page-visibility-control output,
+.page-size-control output {
   min-width: 29px;
   color: #d6bb8b;
   font: 700 8px/1 var(--font-sans);
@@ -754,6 +757,48 @@ option { color: #ddd6cc; background: #141415; }
   .page-content:not(.page-dashboard):not(.page-cabinet) { background-size: 44px 44px, 44px 44px, auto, auto; }
 }
 
+/* Reading contrast: analysis prose is carved in warm ivory. Gold remains an
+   accent for labels and links, while legacy green body copy is removed. */
+.page-content:not(.page-dashboard) .rich-text-view,
+.page-content:not(.page-dashboard) .rich-text-view p,
+.page-content:not(.page-dashboard) .rich-text-view li,
+.page-content:not(.page-dashboard) .rich-text-view strong,
+.page-content:not(.page-dashboard) .rich-text-view em,
+.page-content:not(.page-dashboard) .rich-text-view td,
+.page-content:not(.page-dashboard) .rich-text-view th {
+  color: #ded7cb !important;
+}
+.page-content:not(.page-dashboard) .rich-text-view blockquote {
+  color: #e5ddd0 !important;
+  border-left-color: #b89259 !important;
+  background: rgba(184,146,89,.09) !important;
+}
+.page-content:not(.page-dashboard) .rich-text-view code {
+  color: #f0e4cf;
+  background: rgba(255,255,255,.055);
+}
+.page-content:not(.page-dashboard) .human-thinking-path article > div > p,
+.page-content:not(.page-dashboard) .human-thinking-path details p,
+.page-content:not(.page-dashboard) .thinking-journey-overview p,
+.page-content:not(.page-dashboard) .turning-points p,
+.page-content:not(.page-dashboard) .question-construction-lab details p,
+.page-content:not(.page-dashboard) .quick-focus-note p,
+.page-content:not(.page-dashboard) .playbook-preview p,
+.page-content:not(.page-dashboard) .base-node-content > p,
+.page-content:not(.page-dashboard) .heuristic-question-card p {
+  color: #d8d0c4 !important;
+}
+.page-content:not(.page-dashboard) .thought-transition,
+.page-content:not(.page-dashboard) .quick-focus-note blockquote,
+.page-content:not(.page-dashboard) .question-rationale {
+  color: #e0d8cb !important;
+}
+.page-content:not(.page-dashboard) .human-thinking-path details small,
+.page-content:not(.page-dashboard) .daily-analysis-report > header p,
+.page-content:not(.page-dashboard) .daily-analysis-report > header small {
+  color: #b9b0a3 !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     scroll-behavior: auto !important;
@@ -815,13 +860,16 @@ option { color: #ddd6cc; background: #141415; }
 .page-atmosphere-base {
   opacity: var(--page-art-opacity, .62);
   filter: grayscale(.62) contrast(1.1) brightness(.76) sepia(.07);
-  transform: scale(1.015);
+  transform: scale(var(--page-art-scale-start, 1.015));
+  transform-origin: 72% center;
   animation: page-atmosphere-breathe 24s ease-in-out infinite alternate;
 }
 
 .page-atmosphere-reveal {
   opacity: var(--page-reveal-opacity, .9);
   filter: grayscale(.3) contrast(1.1) brightness(.98) sepia(.08);
+  transform: scale(var(--page-art-scale, 1));
+  transform-origin: 72% center;
   mask-image: radial-gradient(circle 300px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.88) 34%, transparent 76%);
   -webkit-mask-image: radial-gradient(circle 300px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.88) 34%, transparent 76%);
 }
@@ -843,7 +891,7 @@ option { color: #ddd6cc; background: #141415; }
   right: 26px;
   bottom: 24px;
   z-index: 18;
-  max-width: 440px;
+  max-width: 620px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -867,7 +915,9 @@ option { color: #ddd6cc; background: #141415; }
 
 .page-atmosphere-controls input[type="file"] { display: none; }
 .page-atmosphere-controls .page-visibility-control { min-height: 30px; border-color: transparent; background: rgba(255,255,255,.025); }
-.page-atmosphere-controls .page-visibility-control input { display: block; width: 78px; }
+.page-atmosphere-controls .page-size-control { min-height: 30px; border-color: transparent; background: rgba(255,255,255,.025); }
+.page-atmosphere-controls .page-visibility-control input,
+.page-atmosphere-controls .page-size-control input { display: block; width: 78px; }
 .page-atmosphere-controls button {
   padding: 7px 10px;
   white-space: nowrap;
@@ -1276,8 +1326,8 @@ option { color: #ddd6cc; background: #141415; }
 .page-growth .relation-legend i.related { background: linear-gradient(90deg, #9a7847, #d0ad70); }
 
 @keyframes page-atmosphere-breathe {
-  from { transform: scale(1.015) translate3d(0,0,0); }
-  to { transform: scale(1.055) translate3d(-.7%,-.4%,0); }
+  from { transform: scale(var(--page-art-scale-start, 1.015)) translate3d(0,0,0); }
+  to { transform: scale(var(--page-art-scale-end, 1.055)) translate3d(-.7%,-.4%,0); }
 }
 
 @media (max-width: 900px) {
@@ -1407,7 +1457,9 @@ html, body { max-width: 100%; overflow-x: hidden; }
     border-radius: 18px;
   }
   .page-atmosphere-controls .page-visibility-control { flex: 1 1 150px; }
-  .page-atmosphere-controls .page-visibility-control input { width: min(30vw, 120px); }
+  .page-atmosphere-controls .page-size-control { flex: 1 1 150px; }
+  .page-atmosphere-controls .page-visibility-control input,
+  .page-atmosphere-controls .page-size-control input { width: min(30vw, 120px); }
   .page-atmosphere-controls button { min-height: 40px; }
   .page-atmosphere-controls small { display: none; }
   .page-framework .page-atmosphere-base,
