@@ -7,6 +7,7 @@ type Favorite = Quote & { id: string };
 
 const DEFAULT_HERO_IMAGE = "/visuals/xuli-female-portrait-hero.png";
 const HERO_IMAGE_STORAGE_KEY = "xuli:home-hero-image:v1";
+const HERO_VISIBILITY_STORAGE_KEY = "xuli:home-hero-visibility:v1";
 
 async function prepareHeroImage(file: File) {
   const objectUrl = URL.createObjectURL(file);
@@ -58,6 +59,7 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
   const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
   const [customHero, setCustomHero] = useState(false);
   const [heroImageStatus, setHeroImageStatus] = useState("");
+  const [heroVisibility, setHeroVisibility] = useState(.78);
   const heroRef = useRef<HTMLElement>(null);
   const heroFileRef = useRef<HTMLInputElement>(null);
   const rawPointer = useRef({ x: -999, y: -999 });
@@ -75,6 +77,7 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
     let cancelled = false;
     try {
       const stored = window.localStorage.getItem(HERO_IMAGE_STORAGE_KEY);
+      const storedVisibility = Number(window.localStorage.getItem(HERO_VISIBILITY_STORAGE_KEY));
       if (stored) {
         window.setTimeout(() => {
           if (cancelled) return;
@@ -82,6 +85,7 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
           setCustomHero(true);
         }, 0);
       }
+      if (storedVisibility >= .45 && storedVisibility <= 1) window.setTimeout(() => { if (!cancelled) setHeroVisibility(storedVisibility); }, 0);
     } catch {
       // A blocked browser preference store should not prevent the home page from loading.
     }
@@ -183,7 +187,16 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
     { page: "topics", code: "06", title: "磨砺场", note: "把缺口练成习惯" },
   ];
 
-  const heroStyle = { "--home-hero-image": `url("${heroImage}")` } as CSSProperties;
+  function changeHeroVisibility(value: number) {
+    setHeroVisibility(value);
+    try { window.localStorage.setItem(HERO_VISIBILITY_STORAGE_KEY, String(value)); } catch { /* session-only */ }
+  }
+
+  const heroStyle = {
+    "--home-hero-image": `url("${heroImage}")`,
+    "--home-art-brightness": .48 + heroVisibility * .48,
+    "--home-reveal-brightness": .7 + heroVisibility * .38,
+  } as CSSProperties;
 
   return <div className="home-stage">
     <section ref={heroRef} className={`home-hero ${customHero ? "has-custom-art" : ""}`} style={heroStyle} onPointerMove={trackPointer} onPointerLeave={leaveHero}>
@@ -193,11 +206,12 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
       <div className="home-orbit" aria-hidden="true"><span /><span /><span /></div>
       <div className="home-hero-copy">
         <span className="home-overline">XULI / PERSONAL THINKING OS</span>
-        <h1>让思想有序，<br /><em>让方法生长。</em></h1>
+        <h1 className="gothic-display-title home-gothic-title">Order the Mind,<br /><em>Let Method Grow.</em></h1>
         <p>今天不必完成整座体系。留下一个真实问题，或者带回一则值得反复检点的思想。</p>
         <div className="home-primary-actions"><button className="home-launch" onClick={() => onNavigate("new")}><span>＋</span>开始一次思考</button><button className="home-quiet-link" onClick={() => onNavigate("framework")}>进入思维基座 <span>↗</span></button></div>
         <div className="home-art-controls">
           <input ref={heroFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroImage} />
+          <label className="home-visibility-control"><span>背景可见度</span><input type="range" min="45" max="100" step="1" value={Math.round(heroVisibility * 100)} onChange={(event) => changeHeroVisibility(Number(event.target.value) / 100)} aria-label="首页背景可见度" /><output>{Math.round(heroVisibility * 100)}%</output></label>
           <button type="button" onClick={() => heroFileRef.current?.click()}><span aria-hidden="true">◌</span>{customHero ? "更换我的主视觉" : "上传我的主视觉"}</button>
           {customHero && <button type="button" className="home-art-reset" onClick={resetHeroImage}>恢复默认</button>}
           <small aria-live="polite">{heroImageStatus || "图片只保存在当前设备，不会上传到服务器"}</small>

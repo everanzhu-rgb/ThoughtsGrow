@@ -3,6 +3,14 @@
  * A presentation-only layer: no business logic or information architecture changes.
  */
 
+@font-face {
+  font-family: "Xuli Fraktur";
+  src: url("/fonts/UnifrakturCook-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --ink: #ede9e1;
@@ -368,7 +376,7 @@ option { color: #ddd6cc; background: #141415; }
     linear-gradient(0deg, #070708 0%, transparent 34%),
     var(--home-hero-image, url("/visuals/xuli-female-portrait-hero.png"));
   background-position: center;
-  filter: grayscale(.78) sepia(.08) saturate(.34) contrast(1.16) brightness(.65);
+  filter: grayscale(.72) sepia(.08) saturate(.4) contrast(1.14) brightness(var(--home-art-brightness, .86));
   animation: gothic-cinematic-drift 32s ease-in-out infinite alternate;
 }
 .home-hero-reveal {
@@ -382,7 +390,7 @@ option { color: #ddd6cc; background: #141415; }
     var(--home-hero-image, url("/visuals/xuli-female-portrait-hero.png"));
   background-position: center;
   background-size: cover;
-  filter: grayscale(.18) sepia(.1) saturate(.7) contrast(1.08) brightness(.96);
+  filter: grayscale(.18) sepia(.1) saturate(.7) contrast(1.08) brightness(var(--home-reveal-brightness, 1));
   -webkit-mask-image: radial-gradient(circle var(--spot-radius) at var(--spot-x) var(--spot-y), #000 0%, #000 38%, rgba(0,0,0,.78) 60%, rgba(0,0,0,.38) 76%, rgba(0,0,0,.1) 89%, transparent 100%);
   mask-image: radial-gradient(circle var(--spot-radius) at var(--spot-x) var(--spot-y), #000 0%, #000 38%, rgba(0,0,0,.78) 60%, rgba(0,0,0,.38) 76%, rgba(0,0,0,.1) 89%, transparent 100%);
   animation: gothic-cinematic-drift 32s ease-in-out infinite alternate;
@@ -436,7 +444,7 @@ option { color: #ddd6cc; background: #141415; }
   gap: 8px;
   margin-top: 23px;
 }
-.home-art-controls input { display: none; }
+.home-art-controls input[type="file"] { display: none; }
 .home-art-controls button {
   display: inline-flex;
   align-items: center;
@@ -462,6 +470,35 @@ option { color: #ddd6cc; background: #141415; }
   color: #66615a;
   font-size: 9px;
   letter-spacing: .035em;
+}
+
+.home-visibility-control,
+.page-visibility-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgba(224,214,197,.16);
+  border-radius: 999px;
+  color: #aaa196;
+  background: rgba(8,8,9,.42);
+  font-size: 9px;
+  backdrop-filter: blur(12px);
+}
+.home-visibility-control input,
+.page-visibility-control input {
+  width: 92px;
+  height: 3px;
+  margin: 0;
+  accent-color: #c39a5e;
+  cursor: ew-resize;
+}
+.home-visibility-control output,
+.page-visibility-control output {
+  min-width: 29px;
+  color: #d6bb8b;
+  font: 700 8px/1 var(--font-sans);
 }
 
 .home-data-constellation > div {
@@ -766,14 +803,14 @@ option { color: #ddd6cc; background: #141415; }
 }
 
 .page-atmosphere-base {
-  opacity: .48;
+  opacity: var(--page-art-opacity, .62);
   filter: grayscale(.62) contrast(1.1) brightness(.76) sepia(.07);
   transform: scale(1.015);
   animation: page-atmosphere-breathe 24s ease-in-out infinite alternate;
 }
 
 .page-atmosphere-reveal {
-  opacity: .82;
+  opacity: var(--page-reveal-opacity, .9);
   filter: grayscale(.3) contrast(1.1) brightness(.98) sepia(.08);
   mask-image: radial-gradient(circle 300px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.88) 34%, transparent 76%);
   -webkit-mask-image: radial-gradient(circle 300px at var(--page-spot-x) var(--page-spot-y), #000 0, rgba(0,0,0,.88) 34%, transparent 76%);
@@ -796,7 +833,7 @@ option { color: #ddd6cc; background: #141415; }
   right: 26px;
   bottom: 24px;
   z-index: 18;
-  max-width: 250px;
+  max-width: 440px;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -818,7 +855,9 @@ option { color: #ddd6cc; background: #141415; }
   transform: translateY(-2px);
 }
 
-.page-atmosphere-controls input { display: none; }
+.page-atmosphere-controls input[type="file"] { display: none; }
+.page-atmosphere-controls .page-visibility-control { min-height: 30px; border-color: transparent; background: rgba(255,255,255,.025); }
+.page-atmosphere-controls .page-visibility-control input { display: block; width: 78px; }
 .page-atmosphere-controls button {
   padding: 7px 10px;
   white-space: nowrap;
@@ -1006,17 +1045,54 @@ option { color: #ddd6cc; background: #141415; }
 
 .gothic-display-title {
   margin: 14px 0 19px !important;
-  color: #ead7ad !important;
-  font-family: "Old English Text MT", "UnifrakturCook", "Cinzel Decorative", "Copperplate Gothic", Georgia, serif !important;
+  color: transparent !important;
+  font-family: "Xuli Fraktur", "Old English Text MT", Georgia, serif !important;
   font-size: clamp(64px, 8.2vw, 132px) !important;
-  font-weight: 400 !important;
+  font-weight: 700 !important;
   line-height: .78 !important;
   letter-spacing: -.035em !important;
-  text-shadow:
-    0 1px 0 #fff2cf,
-    0 3px 0 rgba(91,61,24,.72),
-    0 15px 38px rgba(0,0,0,.5),
-    0 0 46px rgba(190,145,76,.12);
+  background: linear-gradient(118deg, #fff1c8 0%, #d9b56e 27%, #8f6635 48%, #f4dda4 72%, #b48143 100%);
+  background-size: 220% 100%;
+  background-position: 22% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(84,55,21,.9)) drop-shadow(0 15px 28px rgba(0,0,0,.48));
+  transform: rotate(-.45deg);
+}
+
+.gothic-display-title > span,
+.gothic-section-title > span,
+.home-gothic-title em {
+  display: inline-block;
+  margin-left: clamp(24px, 3.8vw, 68px);
+  background: inherit;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transform: translateY(-.02em) skewX(-2deg);
+}
+.home-gothic-title {
+  max-width: 1120px !important;
+  font-size: clamp(62px, 7.4vw, 118px) !important;
+  line-height: .82 !important;
+}
+.home-gothic-title em { font: inherit; }
+
+.gothic-section-title {
+  margin: 12px 0 20px !important;
+  color: transparent !important;
+  font-family: "Xuli Fraktur", "Old English Text MT", Georgia, serif !important;
+  font-size: clamp(52px, 5.6vw, 88px) !important;
+  font-weight: 700 !important;
+  line-height: .8 !important;
+  letter-spacing: -.025em !important;
+  background: linear-gradient(120deg, #f8e7bd, #c49351 38%, #f0d494 67%, #916431);
+  background-size: 190% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(72,46,18,.85)) drop-shadow(0 13px 24px rgba(0,0,0,.38));
 }
 
 .training-hub-head .gothic-display-title { font-size: clamp(62px, 7vw, 108px) !important; }
@@ -1089,6 +1165,105 @@ option { color: #ddd6cc; background: #141415; }
   color: #dfc18b;
   background: rgba(133,96,42,.28);
 }
+
+/* Cognitive rail: ivory labels and gold focus, never low-contrast green. */
+.page-framework .base-rail-head,
+.page-framework .base-node-rail h3,
+.page-framework .base-node-rail section button,
+.page-framework .cognitive-tree-row,
+.page-framework .tree-node-label,
+.page-framework .tree-toggle,
+.page-framework .tree-add-child,
+.page-framework .base-add-node,
+.page-framework .playbook-rail button {
+  color: #d8d0c3 !important;
+}
+.page-framework .base-node-rail h3,
+.page-framework .base-rail-head { color: #b89966 !important; }
+.page-framework .base-node-rail section button span,
+.page-framework .base-node-rail section button i,
+.page-framework .cognitive-tree-row small { color: #a99e8f !important; }
+.page-framework .cognitive-tree-row:hover,
+.page-framework .cognitive-tree-row.active,
+.page-framework .base-node-rail section button.active {
+  color: #f1dfb7 !important;
+  background: linear-gradient(100deg, rgba(139,99,44,.34), rgba(64,48,29,.24)) !important;
+  box-shadow: inset 2px 0 #c59c5d, 0 9px 24px rgba(0,0,0,.24);
+}
+.page-framework .base-add-node { border-color: rgba(205,175,126,.28) !important; }
+
+/* Growth atlas: replace flat green fields with carved bronze and mineral depth. */
+.page-growth .growth-overview > .activity-card {
+  border-color: rgba(224,203,165,.14);
+  background:
+    radial-gradient(circle at 16% 8%, rgba(192,147,80,.2), transparent 32%),
+    radial-gradient(circle at 82% 78%, rgba(95,111,105,.11), transparent 30%),
+    linear-gradient(145deg, rgba(35,29,23,.94), rgba(14,14,15,.94) 55%, rgba(39,31,22,.9)) !important;
+  box-shadow: 0 35px 90px rgba(0,0,0,.38), inset 0 1px rgba(255,232,190,.045);
+}
+.page-growth .activity-head p,
+.page-growth .activity-side small,
+.page-growth .growth-hero-orbit span { color: #a89b89; }
+.page-growth .activity-stats > div {
+  border-color: rgba(223,203,168,.12);
+  background: linear-gradient(145deg, rgba(255,237,205,.055), rgba(99,72,37,.055));
+}
+.page-growth .activity-stats span { color: #b89a6d; }
+.page-growth .activity-stats strong { color: #eadfcf; }
+.page-growth .heat-cell { background: linear-gradient(145deg, rgba(255,255,255,.045), rgba(96,75,49,.07)); }
+.page-growth .heat-cell.heat-1 { color: #a28b69; background: linear-gradient(145deg, #3b342b, #282622); }
+.page-growth .heat-cell.heat-2 { color: #c1a373; background: linear-gradient(145deg, #665035, #393128); }
+.page-growth .heat-cell.heat-3 { color: #e1c68f; background: linear-gradient(145deg, #987241, #54442f); }
+.page-growth .heat-cell.heat-4 {
+  color: #fff0c5;
+  background: linear-gradient(145deg, #d1ab69, #76532d 72%, #3c3125);
+  box-shadow: inset 0 1px rgba(255,245,215,.38), 0 0 20px rgba(190,145,76,.28);
+}
+.page-growth .heat-focus {
+  border-color: rgba(222,201,164,.13);
+  background: linear-gradient(155deg, rgba(35,29,23,.86), rgba(11,11,12,.78));
+}
+.page-growth .evidence-preview {
+  color: #e4dbce;
+  background:
+    radial-gradient(circle at 85% 4%, rgba(184,139,76,.17), transparent 34%),
+    linear-gradient(150deg, #2b241c, #151516 58%, #31271d) !important;
+  box-shadow: inset 0 1px rgba(255,237,205,.05);
+}
+.page-growth .evidence-preview > div:first-child,
+.page-growth .evidence-list button { border-color: rgba(226,207,173,.1); }
+.page-growth .evidence-preview > div:first-child span,
+.page-growth .evidence-list button > span,
+.page-growth .evidence-list button > small { color: #ad9066; }
+.page-growth .evidence-list button > p { color: #b7ad9f; }
+.page-growth .relation-inspector {
+  color: #e7ded1;
+  background:
+    radial-gradient(circle at 70% 0, rgba(181,133,69,.18), transparent 34%),
+    linear-gradient(155deg, #2b241c, #151516 58%, #2f261d) !important;
+}
+.page-growth .relation-inspector > span,
+.page-growth .relation-inspector > p,
+.page-growth .relation-suggestions .relation-jump p,
+.page-growth .relation-none { color: #aa9f91; }
+.page-growth .relation-suggestions > article {
+  border-color: rgba(222,201,164,.11);
+  background: linear-gradient(145deg, rgba(255,240,212,.045), rgba(100,70,36,.06));
+}
+.page-growth .relation-suggestions .relation-jump > i,
+.page-growth .relation-suggestions button > i {
+  color: #ead5aa;
+  background: linear-gradient(135deg, #725633, #3d3429);
+}
+.page-growth .relation-nodes circle:not(.node-halo) {
+  fill: #8d693a;
+  stroke: #ead5ad;
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.38));
+}
+.page-growth .relation-nodes .node-halo { fill: rgba(192,149,82,.12); }
+.page-growth .relation-nodes g:hover circle:not(.node-halo),
+.page-growth .relation-nodes g.active circle:not(.node-halo) { fill: #d0aa69; stroke: #fff0c6; }
+.page-growth .relation-legend i.related { background: linear-gradient(90deg, #9a7847, #d0ad70); }
 
 @keyframes page-atmosphere-breathe {
   from { transform: scale(1.015) translate3d(0,0,0); }

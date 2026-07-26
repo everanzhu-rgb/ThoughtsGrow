@@ -212,7 +212,7 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
 
   return <div className="growth-overview">
     <header className="growth-overview-hero">
-      <div><span>GROWTH ATLAS · 成长分析</span><h1 className="gothic-display-title">Growth<br />Atlas</h1><p>不评判你“有多强”，只把真实记录、近期关注与潜在连接放在同一张桌面上。</p></div>
+      <div><span>GROWTH ATLAS · 成长分析</span><h1 className="gothic-display-title">Growth<br /><span>Atlas</span></h1><p>不评判你“有多强”，只把真实记录、近期关注与潜在连接放在同一张桌面上。</p></div>
       <div className="growth-hero-orbit" aria-hidden="true"><i /><i /><i /><strong>{records.length}</strong><span>THOUGHT<br />TRACES</span></div>
     </header>
 

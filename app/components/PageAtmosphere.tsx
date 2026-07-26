@@ -78,6 +78,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
   const [image, setImage] = useState(defaultArt);
   const [custom, setCustom] = useState(false);
   const [status, setStatus] = useState("");
+  const [visibility, setVisibility] = useState(.62);
   const layerRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const rawPointer = useRef({ x: -999, y: -999 });
@@ -119,6 +120,15 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     };
   }, []);
 
+  useEffect(() => {
+    try {
+      const stored = Number(window.localStorage.getItem(`xuli:page-visibility:${page}:v1`));
+      if (stored >= .35 && stored <= 1) window.setTimeout(() => setVisibility(stored), 0);
+    } catch {
+      // Visibility remains adjustable for the current session.
+    }
+  }, [page]);
+
   async function upload(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -155,7 +165,16 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     setStatus("已恢复默认雕塑背景");
   }
 
-  const style = { "--page-atmosphere-image": `url("${image}")` } as CSSProperties;
+  function changeVisibility(value: number) {
+    setVisibility(value);
+    try { window.localStorage.setItem(`xuli:page-visibility:${page}:v1`, String(value)); } catch { /* session-only */ }
+  }
+
+  const style = {
+    "--page-atmosphere-image": `url("${image}")`,
+    "--page-art-opacity": visibility,
+    "--page-reveal-opacity": Math.min(1, visibility + .28),
+  } as CSSProperties;
 
   return <>
     <div ref={layerRef} className="page-atmosphere" style={style} aria-hidden="true">
@@ -166,6 +185,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     </div>
     <div className={`page-atmosphere-controls ${custom ? "has-custom-art" : ""}`}>
       <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={upload} />
+      <label className="page-visibility-control"><span>背景</span><input type="range" min="35" max="100" step="1" value={Math.round(visibility * 100)} onChange={(event) => changeVisibility(Number(event.target.value) / 100)} aria-label={`${title}背景可见度`} /><output>{Math.round(visibility * 100)}%</output></label>
       <button type="button" onClick={() => fileRef.current?.click()} aria-label={`更换${title}背景`}><span aria-hidden="true">◐</span> 更换本页背景</button>
       {custom && <button type="button" className="page-atmosphere-reset" onClick={() => void reset()}>恢复默认</button>}
       <small aria-live="polite">{status || "仅保存在当前设备"}</small>
