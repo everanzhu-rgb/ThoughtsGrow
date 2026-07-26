@@ -1567,7 +1567,7 @@ export function ThoughtLabApp() {
             <button aria-label="通知" className="notification-button" onClick={() => setUtilityPanel("notifications")}>·<i /></button>
           </div>
         </header>
-        <main className={`page-content page-${activePage}`}>{renderPage()}</main>
+        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`}>{renderPage()}</main>
       </div>
 
       {helpOpen && (
