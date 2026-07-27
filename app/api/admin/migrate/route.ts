@@ -64,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   await ensureSchema();
-  const payload = await request.json() as { table?: string; rows?: MigrationRow[] };
+  const payload = await request.json() as { table?: string; rows?: MigrationRow[]; replaceAll?: boolean };
   if (!payload.table || !(payload.table in tableColumns) || !Array.isArray(payload.rows)) {
     return Response.json({ error: "Invalid migration payload" }, { status: 400 });
   }
@@ -75,6 +75,7 @@ export async function POST(request: Request) {
   const statement = `INSERT OR REPLACE INTO ${table} (${columns.join(", ")}) VALUES (${placeholders})`;
   const d1 = getD1();
   const queries = payload.rows.map((row) => d1.prepare(statement).bind(...columns.map((column) => row[camelKey(column)] ?? null)));
+  if (payload.replaceAll) queries.unshift(d1.prepare(`DELETE FROM ${table}`));
   if (queries.length) await d1.batch(queries);
-  return Response.json({ ok: true, table, count: queries.length });
+  return Response.json({ ok: true, table, count: payload.rows.length });
 }
