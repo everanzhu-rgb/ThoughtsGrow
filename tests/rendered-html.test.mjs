@@ -211,12 +211,16 @@ test("visual personalization, timed use and cabinet reflections are durable", as
   ]);
   assert.match(home, /本次暂存/);
   assert.match(home, /上传服务器/);
+  assert.match(home, /TIME · \{usageDuration\.unit\}/);
+  assert.doesNotMatch(home, /今天不必完成整座体系/);
   assert.match(home, /sourceUrl/);
   assert.doesNotMatch(home, /序理.*原创/);
   assert.match(atmosphere, /api\/visual-settings\/image/);
   assert.match(visualUpload, /request\.body/);
   assert.match(app, /api\/usage/);
   assert.match(app, /sendBeacon/);
+  assert.match(app, /background-focus-control/);
+  assert.match(app, /xuli:scenery-focus:v1/);
   assert.match(activity, /totalUsageSeconds/);
   assert.match(usageApi, /ON CONFLICT\(day\)/);
   assert.match(commentsApi, /cabinet_comments/);
@@ -227,7 +231,10 @@ test("visual personalization, timed use and cabinet reflections are durable", as
   assert.match(migration, /usage_daily/);
   assert.match(migration, /cabinet_comments/);
   assert.match(styles, /background-size:contain/);
+  assert.match(styles, /page-cabinet \.page-atmosphere-base/);
   assert.match(styles, /galaxy-note-orbit/);
+  assert.match(styles, /galaxy-breathe/);
+  assert.match(styles, /content-visibility/);
 });
 
 test("observatory is optional quick analysis and reports mirror the initial result", async () => {

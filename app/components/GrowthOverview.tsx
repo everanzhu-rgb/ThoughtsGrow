@@ -31,11 +31,10 @@ type RelationKind = "related" | "merge" | "duplicate" | "tension";
 type Relation = { from: string; to: string; kind: RelationKind; weight: number; reason: string; confirmedId?: string };
 type ConfirmedRelation = { id: string; fromRecordId: string; toRecordId: string; relation: RelationKind; reason: string };
 
-function formatDuration(seconds: number) {
-  if (seconds < 60) return `${seconds} 秒`;
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return hours ? `${hours} 小时 ${minutes} 分` : `${minutes} 分钟`;
+function compactDuration(seconds: number) {
+  if (seconds < 3600) return { value: String(seconds ? Math.max(1, Math.floor(seconds / 60)) : 0), unit: "min" };
+  const hours = seconds / 3600;
+  return { value: (hours < 10 ? hours.toFixed(1) : Math.round(hours).toString()).replace(/\.0$/, ""), unit: "h" };
 }
 
 const domainRules = [
@@ -235,9 +234,10 @@ export function GrowthOverview({ records, byDay, usageByDay, totalUsageSeconds, 
   const selectedRelations = selectedRecord ? relations.filter((relation) => relation.from === selectedRecord.id || relation.to === selectedRecord.id) : [];
   const activeDays = Object.values(byDay).filter((items) => items.length).length;
   const textVolume = records.reduce((sum, record) => sum + compactText(`${record.content}${record.note}${record.summary}`).length, 0);
+  const usageDuration = compactDuration(totalUsageSeconds);
   const stats = [
     { label: "现有记录", value: records.length.toLocaleString("zh-CN"), note: "可追溯的思维证据" },
-    { label: "总体使用时间", value: formatDuration(totalUsageSeconds), note: "陪伴思考的累计时长" },
+    { label: "总体使用时间", value: usageDuration.value, unit: usageDuration.unit, note: "陪伴思考的累计时长" },
     { label: "文字沉淀", value: textVolume >= 10000 ? `${(textVolume / 10000).toFixed(1)} 万` : textVolume.toLocaleString("zh-CN"), note: "原文、札记与摘要" },
     { label: "活跃日", value: activeDays.toLocaleString("zh-CN"), note: "近 60 天留下痕迹" },
   ];

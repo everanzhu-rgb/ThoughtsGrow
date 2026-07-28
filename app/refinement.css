@@ -1,5 +1,5 @@
 /* Clearer wallpaper, softer glass and richer motion. */
-.page-content:not(.page-dashboard):not(.page-cabinet) .card,.modal-backdrop .card{background:linear-gradient(145deg,rgba(255,255,255,.035),transparent 46%),rgba(15,15,16,.72)!important;backdrop-filter:blur(19px) saturate(1.08);-webkit-backdrop-filter:blur(19px) saturate(1.08)}
+.page-content:not(.page-dashboard):not(.page-cabinet) .card,.modal-backdrop .card{background:linear-gradient(145deg,rgba(255,255,255,.035),transparent 46%),rgba(15,15,16,.62)!important;backdrop-filter:blur(19px) saturate(1.08);-webkit-backdrop-filter:blur(19px) saturate(1.08)}
 .page-analyze .analysis-input-card,.page-new .record-compose,.page-analyze .markdown-composer,.page-new .markdown-composer{color:#d8d0c5;border-color:rgba(220,203,176,.14)!important;background:linear-gradient(145deg,rgba(30,27,24,.76),rgba(9,9,10,.7))!important;box-shadow:inset 0 1px rgba(255,244,223,.035),0 22px 70px rgba(0,0,0,.25)}
 .page-analyze .visual-editor,.page-new .visual-editor,.page-analyze .markdown-preview,.page-new .markdown-preview,.page-analyze .composer-body>textarea,.page-new .composer-body>textarea{color:#d7cec1!important;background:rgba(10,10,11,.72)!important}
 .page-analyze .link-import,.page-new .link-import,.page-analyze .composer-toolbar,.page-new .composer-toolbar,.page-analyze .rich-toolbar,.page-new .rich-toolbar{border-color:rgba(218,199,168,.11)!important;background:rgba(17,16,16,.8)!important}
@@ -20,3 +20,178 @@
 .cabinet-object a,.cabinet-viewer a{color:#c4a46f;text-decoration:underline;text-underline-offset:3px}
 @media(max-width:860px){.cabinet-viewer{height:calc(100vh - 24px);grid-template-columns:1fr;grid-template-rows:minmax(300px,52vh) 1fr}.cabinet-reflection{border-left:0;border-top:1px solid rgba(231,212,179,.11)}.daily-usage-strip header{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.growth-hero-orbit b,.focus-bars button>i,.focus-count em,.heat-cell.focused{animation:none!important}}
+
+/* July polish: quieter controls, clearer wallpaper and a global scenery mode. */
+.page-content:not(.page-dashboard) > :not(.page-atmosphere) {
+  opacity: var(--content-visibility, 1);
+  transition: opacity .32s ease;
+}
+.page-dashboard .home-hero-copy,
+.page-dashboard .home-data-constellation,
+.page-dashboard .home-portals,
+.page-dashboard .home-bottom-grid {
+  filter: opacity(var(--content-visibility, 1));
+  transition: filter .32s ease;
+}
+.background-focus-control {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 74;
+  width: 170px;
+  min-height: 30px;
+  padding: 0 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: rgba(232,222,207,.72);
+  border: 1px solid rgba(226,208,178,.16);
+  border-radius: 999px;
+  background: rgba(8,8,9,.48);
+  box-shadow: 0 12px 38px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.035);
+  backdrop-filter: blur(14px) saturate(1.08);
+  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+}
+.background-focus-control span,
+.background-focus-control output {
+  flex: 0 0 auto;
+  font-size: 8px;
+  letter-spacing: .12em;
+}
+.background-focus-control output { width: 24px; color: #c8a568; text-align: right; letter-spacing: 0; }
+.background-focus-control input { width: 86px; height: 2px; accent-color: #c49b5c; cursor: pointer; }
+
+.home-art-controls {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+  margin-top: 15px !important;
+  padding: 3px;
+  flex-wrap: nowrap !important;
+  gap: 3px !important;
+  border: 1px solid rgba(224,214,197,.1);
+  border-radius: 999px;
+  background: rgba(7,7,8,.34);
+  box-shadow: 0 12px 34px rgba(0,0,0,.18);
+  backdrop-filter: blur(13px);
+}
+.home-art-controls button,
+.home-art-controls .home-visibility-control {
+  min-height: 27px !important;
+  padding: 0 8px !important;
+  gap: 4px !important;
+  border-color: transparent !important;
+  background: transparent !important;
+  font-size: 8px;
+  white-space: nowrap;
+}
+.home-art-controls button:hover { background: rgba(255,244,222,.075) !important; }
+.home-art-controls button > span { font-size: 12px !important; }
+.home-art-controls .home-visibility-control { padding-left: 9px !important; }
+.home-art-controls .home-visibility-control input { width: 58px; }
+.home-art-controls .home-visibility-control span,
+.home-art-controls .home-visibility-control output { font-size: 8px; }
+.home-art-controls > small {
+  position: absolute;
+  left: 8px;
+  top: calc(100% + 5px);
+  width: max-content;
+  max-width: min(360px, 82vw);
+  min-height: 0;
+  padding: 4px 7px;
+  opacity: 0;
+  pointer-events: none;
+  border-radius: 6px;
+  color: #9a9083;
+  background: rgba(7,7,8,.74);
+  transition: opacity .18s ease;
+}
+.home-art-controls:hover > small,
+.home-art-controls:focus-within > small { opacity: 1; }
+
+.page-cabinet .page-atmosphere-base,
+.page-cabinet .page-atmosphere-reveal,
+.page-history .page-atmosphere-base,
+.page-history .page-atmosphere-reveal {
+  background-size: cover !important;
+  background-position: center !important;
+}
+.page-cabinet .cabinet-hero { background: linear-gradient(90deg,rgba(7,7,8,.78),rgba(7,7,8,.42),rgba(7,7,8,.14)) !important; }
+.page-cabinet .cabinet-room { background: rgba(8,8,9,.56) !important; }
+.page-history .version-hero { background: linear-gradient(108deg,rgba(8,8,9,.78),rgba(16,16,16,.52) 62%,rgba(35,29,22,.2)) !important; }
+.page-history .version-layout { background: rgba(12,12,13,.6) !important; }
+.page-history .version-sidebar { background: rgba(15,15,16,.65) !important; }
+.page-history .version-stage { background: rgba(14,14,15,.43) !important; }
+.page-growth .growth-overview > .activity-card { background: radial-gradient(circle at 16% 8%,rgba(192,147,80,.16),transparent 32%),radial-gradient(circle at 82% 78%,rgba(95,111,105,.08),transparent 30%),linear-gradient(145deg,rgba(35,29,23,.72),rgba(14,14,15,.68) 55%,rgba(39,31,22,.66)) !important; }
+
+/* Fraktur stays ornamental, but gains breathing room and a cleaner edge. */
+.gothic-display-title,
+.gothic-section-title {
+  line-height: .9 !important;
+  letter-spacing: .004em !important;
+  background-position: 34% center !important;
+  filter: drop-shadow(0 8px 19px rgba(0,0,0,.34)) !important;
+  transform: none !important;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+.home-gothic-title { line-height: .91 !important; }
+.gothic-display-title > span,
+.gothic-section-title > span,
+.home-gothic-title em { transform: translateY(.01em) skewX(-1deg) !important; }
+
+/* The record galaxy breathes as one system while every note keeps its own orbit. */
+.growth-hero-orbit {
+  animation: galaxy-breathe 7.2s ease-in-out infinite;
+  background: radial-gradient(circle at 48% 46%,rgba(245,220,173,.12),rgba(190,142,73,.075) 21%,transparent 61%);
+  box-shadow: 0 0 90px rgba(150,104,54,.11), inset 0 0 55px rgba(240,214,166,.025);
+}
+.growth-hero-orbit::before { animation: galaxy-ring-breathe 9.5s ease-in-out infinite reverse; }
+.growth-hero-orbit::after { animation: galaxy-ring-breathe 7.5s ease-in-out infinite; }
+.growth-hero-orbit strong {
+  color: transparent !important;
+  font-family: "Xuli Fraktur", "Old English Text MT", Georgia, serif !important;
+  font-size: clamp(66px,7vw,96px) !important;
+  font-weight: 400 !important;
+  line-height: .84 !important;
+  letter-spacing: .035em;
+  background: linear-gradient(120deg,#f7eedf,#d7b879 46%,#fff9ed 70%,#b98a4e);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 8px 18px rgba(0,0,0,.36));
+  animation: galaxy-core-pulse 4.8s ease-in-out infinite;
+}
+.growth-hero-orbit > span {
+  letter-spacing: .28em !important;
+  animation: galaxy-caption-pulse 4.8s ease-in-out infinite;
+}
+@keyframes galaxy-breathe {
+  0%,100% { transform: scale(.985); filter: brightness(.92); }
+  50% { transform: scale(1.018); filter: brightness(1.14); }
+}
+@keyframes galaxy-ring-breathe {
+  0%,100% { opacity: .36; transform: scale(.985); }
+  50% { opacity: .72; transform: scale(1.025); }
+}
+@keyframes galaxy-core-pulse {
+  0%,100% { opacity: .84; transform: translateY(2px) scale(.985); }
+  50% { opacity: 1; transform: translateY(-2px) scale(1.025); }
+}
+@keyframes galaxy-caption-pulse {
+  0%,100% { opacity: .58; letter-spacing: .26em; }
+  50% { opacity: .94; letter-spacing: .31em; }
+}
+
+@media(max-width:720px) {
+  .background-focus-control { right: 12px; bottom: 78px; width: 154px; }
+  .background-focus-control input { width: 70px; }
+  .home-art-controls { flex-wrap: wrap !important; border-radius: 14px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .growth-hero-orbit,
+  .growth-hero-orbit::before,
+  .growth-hero-orbit::after,
+  .growth-hero-orbit strong,
+  .growth-hero-orbit > span { animation: none !important; }
+}

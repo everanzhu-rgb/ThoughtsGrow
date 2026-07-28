@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { MarkdownComposer } from "./MarkdownComposer";
 import { DynamicHome } from "./DynamicHome";
 import { FrameworkMindMap } from "./FrameworkMindMap";
@@ -471,13 +471,21 @@ export function ThoughtLabApp() {
   const [recordFolders, setRecordFolders] = useState<RecordFolder[]>([]);
   const [recordFolderLinks, setRecordFolderLinks] = useState<RecordFolderLink[]>([]);
   const [activeFolderId, setActiveFolderId] = useState("all");
+  const [sceneryFocus, setSceneryFocus] = useState(0);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem("xuli-scene-tags") || "[]") as string[];
       if (saved.length) queueMicrotask(() => setSceneChoices(saved));
+      const storedFocus = Number(window.localStorage.getItem("xuli:scenery-focus:v1"));
+      if (storedFocus >= 0 && storedFocus <= 100) queueMicrotask(() => setSceneryFocus(storedFocus));
     } catch { /* Keep the built-in scene tags. */ }
   }, []);
+
+  function changeSceneryFocus(value: number) {
+    setSceneryFocus(value);
+    try { window.localStorage.setItem("xuli:scenery-focus:v1", String(value)); } catch { /* session-only */ }
+  }
 
   async function loadRecordFolders() {
     const response = await fetch("/api/record-folders");
@@ -1612,10 +1620,15 @@ export function ThoughtLabApp() {
             <button aria-label="通知" className="notification-button" onClick={() => setUtilityPanel("notifications")}>·<i /></button>
           </div>
         </header>
-        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`}>
+        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`} style={{ "--content-visibility": Math.max(.04, 1 - sceneryFocus / 104) } as CSSProperties}>
           {activePage !== "dashboard" && <PageAtmosphere page={activePage} title={pageTitle} />}
           {renderPage()}
         </main>
+        <label className="background-focus-control" title="调低页面模块与文字的显现程度，专心欣赏壁纸">
+          <span>赏景</span>
+          <input type="range" min="0" max="100" step="1" value={sceneryFocus} onChange={(event) => changeSceneryFocus(Number(event.target.value))} aria-label="全页面内容透明度" />
+          <output>{sceneryFocus}%</output>
+        </label>
       </div>
 
       {helpOpen && (

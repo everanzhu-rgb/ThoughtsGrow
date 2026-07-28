@@ -47,11 +47,10 @@ const quotes: Quote[] = [
   { quote: "He who has a why to live can bear almost any how.", translation: "知道为何而活的人，几乎能承受任何生活方式。", author: "Friedrich Nietzsche", source: "Twilight of the Idols", sourceUrl: "https://www.gutenberg.org/ebooks/52263", language: "en", era: "现代" },
 ];
 
-function formatDuration(seconds: number) {
-  if (seconds < 60) return `${seconds} 秒`;
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  return hours ? `${hours} 小时 ${minutes} 分` : `${minutes} 分钟`;
+function compactDuration(seconds: number) {
+  if (seconds < 3600) return { value: String(seconds ? Math.max(1, Math.floor(seconds / 60)) : 0), unit: "min" };
+  const hours = seconds / 3600;
+  return { value: (hours < 10 ? hours.toFixed(1) : Math.round(hours).toString()).replace(/\.0$/, ""), unit: "h" };
 }
 
 type HomeTarget = "framework" | "knowledge" | "analyze" | "history" | "records" | "growth" | "topics" | "new" | "cabinet";
@@ -78,6 +77,7 @@ export function DynamicHome({ records, topicCount, versionCount, usageTotalSecon
   const smoothPointer = useRef({ x: -999, y: -999 });
   const current = quotes[quoteIndex];
   const favorite = favorites.find((item) => item.quote === current.quote);
+  const usageDuration = compactDuration(usageTotalSeconds);
 
   useEffect(() => {
     fetch("/api/favorites").then((response) => response.ok ? response.json() : null).then((data) => setFavorites(data?.favorites ?? [])).catch(() => undefined);
@@ -236,21 +236,20 @@ export function DynamicHome({ records, topicCount, versionCount, usageTotalSecon
       <div className="home-hero-copy">
         <span className="home-overline">XULI / PERSONAL THINKING OS</span>
         <h1 className="gothic-display-title home-gothic-title">Order the Mind,<br /><em>Let Method Grow.</em></h1>
-        <p>今天不必完成整座体系。留下一个真实问题，或者带回一则值得反复检点的思想。</p>
         <div className="home-primary-actions"><button className="home-launch" onClick={() => onNavigate("new")}><span>＋</span>开始一次思考</button><button className="home-quiet-link" onClick={() => onNavigate("framework")}>进入思维基座 <span>↗</span></button></div>
         <div className="home-art-controls">
           <input ref={heroFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroImage} />
           <input ref={heroServerFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroToServer} />
-          <label className="home-visibility-control"><span>背景可见度</span><input type="range" min="45" max="100" step="1" value={Math.round(heroVisibility * 100)} onChange={(event) => changeHeroVisibility(Number(event.target.value) / 100)} aria-label="首页背景可见度" /><output>{Math.round(heroVisibility * 100)}%</output></label>
-          <button type="button" onClick={() => heroFileRef.current?.click()}><span aria-hidden="true">◌</span>本次暂存</button>
-          <button type="button" onClick={() => heroServerFileRef.current?.click()}><span aria-hidden="true">⇧</span>上传服务器</button>
-          {customHero && <button type="button" className="home-art-reset" onClick={resetHeroImage}>恢复默认</button>}
+          <label className="home-visibility-control"><span>壁纸</span><input type="range" min="45" max="100" step="1" value={Math.round(heroVisibility * 100)} onChange={(event) => changeHeroVisibility(Number(event.target.value) / 100)} aria-label="首页背景可见度" /><output>{Math.round(heroVisibility * 100)}%</output></label>
+          <button type="button" aria-label="本次暂存壁纸" onClick={() => heroFileRef.current?.click()}><span aria-hidden="true">◌</span>暂存</button>
+          <button type="button" aria-label="上传壁纸到服务器" onClick={() => heroServerFileRef.current?.click()}><span aria-hidden="true">⇧</span>云端</button>
+          {customHero && <button type="button" className="home-art-reset" aria-label="恢复默认壁纸" onClick={resetHeroImage}>重置</button>}
           <small aria-live="polite">{heroImageStatus || "可只在本次访问暂存，也可上传为共享壁纸"}</small>
         </div>
       </div>
       <div className="home-data-constellation">
         <div><small>记录</small><strong>{records.length}</strong><span>THOUGHTS</span></div>
-        <div><small>所用时间</small><strong>{formatDuration(usageTotalSeconds)}</strong><span>TIME WITH XULI</span></div>
+        <div><small>所用时间</small><strong>{usageDuration.value}</strong><span>TIME · {usageDuration.unit}</span></div>
         <div><small>收藏</small><strong>{favorites.length}</strong><span>KEEPSAKES</span></div>
         <div><small>活跃日</small><strong>{activeDays}</strong><span>ACTIVE DAYS</span></div>
         <div><small>版本 / 专题</small><strong>{Math.max(versionCount, 1)} · {topicCount}</strong><span>EVOLUTION</span></div>
