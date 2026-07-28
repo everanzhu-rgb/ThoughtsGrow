@@ -216,11 +216,16 @@ test("visual personalization, timed use and cabinet reflections are durable", as
   assert.match(home, /sourceUrl/);
   assert.doesNotMatch(home, /序理.*原创/);
   assert.match(atmosphere, /api\/visual-settings\/image/);
+  assert.match(atmosphere, /page-scenery-control/);
+  assert.match(atmosphere, /<img src=\{image\}/);
+  assert.match(atmosphere, /xuli:page-scale:\$\{page\}:v2/);
   assert.match(visualUpload, /request\.body/);
   assert.match(app, /api\/usage/);
   assert.match(app, /sendBeacon/);
-  assert.match(app, /background-focus-control/);
-  assert.match(app, /xuli:scenery-focus:v1/);
+  assert.match(app, /xuli:scenery-focus:\$\{page\}:v2/);
+  assert.match(app, /sceneryFocusByPage/);
+  assert.doesNotMatch(app, /background-focus-control/);
+  assert.doesNotMatch(app, /xuli:scenery-focus:v1/);
   assert.match(activity, /totalUsageSeconds/);
   assert.match(usageApi, /ON CONFLICT\(day\)/);
   assert.match(commentsApi, /cabinet_comments/);
@@ -232,6 +237,8 @@ test("visual personalization, timed use and cabinet reflections are durable", as
   assert.match(migration, /cabinet_comments/);
   assert.match(styles, /background-size:contain/);
   assert.match(styles, /page-cabinet \.page-atmosphere-base/);
+  assert.match(styles, /object-fit: contain/);
+  assert.match(styles, /page-content\.page-dashboard/);
   assert.match(styles, /galaxy-note-orbit/);
   assert.match(styles, /galaxy-breathe/);
   assert.match(styles, /content-visibility/);

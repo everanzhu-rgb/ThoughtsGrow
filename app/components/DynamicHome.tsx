@@ -55,11 +55,13 @@ function compactDuration(seconds: number) {
 
 type HomeTarget = "framework" | "knowledge" | "analyze" | "history" | "records" | "growth" | "topics" | "new" | "cabinet";
 
-export function DynamicHome({ records, topicCount, versionCount, usageTotalSeconds, onNavigate }: {
+export function DynamicHome({ records, topicCount, versionCount, usageTotalSeconds, sceneryFocus, onSceneryFocusChange, onNavigate }: {
   records: Array<{ id: string; title: string; createdAt: string }>;
   topicCount: number;
   versionCount: number;
   usageTotalSeconds: number;
+  sceneryFocus: number;
+  onSceneryFocusChange(value: number): void;
   onNavigate(page: HomeTarget): void;
 }) {
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Date.now() / 86_400_000) % quotes.length);
@@ -241,6 +243,7 @@ export function DynamicHome({ records, topicCount, versionCount, usageTotalSecon
           <input ref={heroFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroImage} />
           <input ref={heroServerFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroToServer} />
           <label className="home-visibility-control"><span>壁纸</span><input type="range" min="45" max="100" step="1" value={Math.round(heroVisibility * 100)} onChange={(event) => changeHeroVisibility(Number(event.target.value) / 100)} aria-label="首页背景可见度" /><output>{Math.round(heroVisibility * 100)}%</output></label>
+          <label className="home-scenery-control"><span>赏景</span><input type="range" min="0" max="100" step="1" value={sceneryFocus} onChange={(event) => onSceneryFocusChange(Number(event.target.value))} aria-label="首页内容透明度" /><output>{sceneryFocus}%</output></label>
           <button type="button" aria-label="本次暂存壁纸" onClick={() => heroFileRef.current?.click()}><span aria-hidden="true">◌</span>暂存</button>
           <button type="button" aria-label="上传壁纸到服务器" onClick={() => heroServerFileRef.current?.click()}><span aria-hidden="true">⇧</span>云端</button>
           {customHero && <button type="button" className="home-art-reset" aria-label="恢复默认壁纸" onClick={resetHeroImage}>重置</button>}

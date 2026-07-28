@@ -471,20 +471,26 @@ export function ThoughtLabApp() {
   const [recordFolders, setRecordFolders] = useState<RecordFolder[]>([]);
   const [recordFolderLinks, setRecordFolderLinks] = useState<RecordFolderLink[]>([]);
   const [activeFolderId, setActiveFolderId] = useState("all");
-  const [sceneryFocus, setSceneryFocus] = useState(0);
+  const [sceneryFocusByPage, setSceneryFocusByPage] = useState<Partial<Record<PageKey, number>>>({});
+  const sceneryFocus = sceneryFocusByPage[activePage] ?? 0;
 
   useEffect(() => {
     try {
       const saved = JSON.parse(window.localStorage.getItem("xuli-scene-tags") || "[]") as string[];
       if (saved.length) queueMicrotask(() => setSceneChoices(saved));
-      const storedFocus = Number(window.localStorage.getItem("xuli:scenery-focus:v1"));
-      if (storedFocus >= 0 && storedFocus <= 100) queueMicrotask(() => setSceneryFocus(storedFocus));
+      const storedFocus = {} as Partial<Record<PageKey, number>>;
+      (["dashboard", "records", "new", "growth", "topics", "knowledge", "framework", "history", "analyze", "trash", "cabinet", "integration"] as PageKey[]).forEach((page) => {
+        const raw = window.localStorage.getItem(`xuli:scenery-focus:${page}:v2`);
+        const value = raw === null ? Number.NaN : Number(raw);
+        if (value >= 0 && value <= 100) storedFocus[page] = value;
+      });
+      if (Object.keys(storedFocus).length) queueMicrotask(() => setSceneryFocusByPage(storedFocus));
     } catch { /* Keep the built-in scene tags. */ }
   }, []);
 
   function changeSceneryFocus(value: number) {
-    setSceneryFocus(value);
-    try { window.localStorage.setItem("xuli:scenery-focus:v1", String(value)); } catch { /* session-only */ }
+    setSceneryFocusByPage((current) => ({ ...current, [activePage]: value }));
+    try { window.localStorage.setItem(`xuli:scenery-focus:${activePage}:v2`, String(value)); } catch { /* session-only */ }
   }
 
   async function loadRecordFolders() {
@@ -1140,7 +1146,7 @@ export function ThoughtLabApp() {
       </>
     );
     void legacyDashboard;
-    return <DynamicHome records={records} topicCount={topics.length + customTopics.length} versionCount={frameworkVersions.length} usageTotalSeconds={totalUsageSeconds} onNavigate={go} />;
+    return <DynamicHome records={records} topicCount={topics.length + customTopics.length} versionCount={frameworkVersions.length} usageTotalSeconds={totalUsageSeconds} sceneryFocus={sceneryFocus} onSceneryFocusChange={changeSceneryFocus} onNavigate={go} />;
   }
 
   function renderRecords() {
@@ -1583,7 +1589,7 @@ export function ThoughtLabApp() {
   };
 
   return (
-    <div className="app-shell" style={{ "--content-visibility": Math.max(.04, 1 - sceneryFocus / 104) } as CSSProperties}>
+    <div className="app-shell">
       <aside className="sidebar">
         <button className="brand" onClick={() => go("dashboard")} aria-label="返回首页">
           <span className="brand-mark">序</span>
@@ -1620,15 +1626,10 @@ export function ThoughtLabApp() {
             <button aria-label="通知" className="notification-button" onClick={() => setUtilityPanel("notifications")}>·<i /></button>
           </div>
         </header>
-        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`}>
-          {activePage !== "dashboard" && <PageAtmosphere page={activePage} title={pageTitle} />}
+        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`} style={{ "--content-visibility": Math.max(.04, 1 - sceneryFocus / 104) } as CSSProperties}>
+          {activePage !== "dashboard" && <PageAtmosphere page={activePage} title={pageTitle} sceneryFocus={sceneryFocus} onSceneryFocusChange={changeSceneryFocus} />}
           {renderPage()}
         </main>
-        <label className="background-focus-control" title="调低页面模块与文字的显现程度，专心欣赏壁纸">
-          <span>赏景</span>
-          <input type="range" min="0" max="100" step="1" value={sceneryFocus} onChange={(event) => changeSceneryFocus(Number(event.target.value))} aria-label="全页面内容透明度" />
-          <output>{sceneryFocus}%</output>
-        </label>
       </div>
 
       {helpOpen && (

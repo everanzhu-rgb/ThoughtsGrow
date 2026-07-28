@@ -21,51 +21,101 @@
 @media(max-width:860px){.cabinet-viewer{height:calc(100vh - 24px);grid-template-columns:1fr;grid-template-rows:minmax(300px,52vh) 1fr}.cabinet-reflection{border-left:0;border-top:1px solid rgba(231,212,179,.11)}.daily-usage-strip header{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.growth-hero-orbit b,.focus-bars button>i,.focus-count em,.heat-cell.focused{animation:none!important}}
 
-/* July polish: quieter controls, clearer wallpaper and a global scenery mode. */
-.page-content:not(.page-dashboard) > :not(.page-atmosphere) {
+/* July polish: quieter controls, clearer wallpaper and per-page scenery mode. */
+.page-content:not(.page-dashboard) > :not(.page-atmosphere):not(.page-atmosphere-controls) {
   opacity: var(--content-visibility, 1);
   transition: opacity .32s ease;
 }
-.app-shell > .sidebar,
-.app-main > .topbar,
-.app-shell > .mobile-nav {
-  opacity: var(--content-visibility, 1);
-  transition: opacity .32s ease;
-}
-.page-dashboard .home-hero-copy,
+.page-dashboard .home-hero-copy > :not(.home-art-controls),
 .page-dashboard .home-data-constellation,
 .page-dashboard .home-portals,
 .page-dashboard .home-bottom-grid {
   filter: opacity(var(--content-visibility, 1));
   transition: filter .32s ease;
 }
-.background-focus-control {
-  position: fixed;
-  right: 22px;
-  bottom: 22px;
-  z-index: 74;
-  width: 170px;
-  min-height: 30px;
-  padding: 0 9px;
+.page-scenery-control,
+.home-scenery-control {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
+  min-height: 27px;
+  padding: 0 8px;
   color: rgba(232,222,207,.72);
-  border: 1px solid rgba(226,208,178,.16);
+  border: 1px solid transparent;
   border-radius: 999px;
-  background: rgba(8,8,9,.48);
-  box-shadow: 0 12px 38px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.035);
-  backdrop-filter: blur(14px) saturate(1.08);
-  -webkit-backdrop-filter: blur(14px) saturate(1.08);
+  background: rgba(255,255,255,.025);
 }
-.background-focus-control span,
-.background-focus-control output {
+.page-scenery-control span,
+.page-scenery-control output,
+.home-scenery-control span,
+.home-scenery-control output {
   flex: 0 0 auto;
   font-size: 8px;
   letter-spacing: .12em;
 }
-.background-focus-control output { width: 24px; color: #c8a568; text-align: right; letter-spacing: 0; }
-.background-focus-control input { width: 86px; height: 2px; accent-color: #c49b5c; cursor: pointer; }
+.page-scenery-control output,
+.home-scenery-control output { width: 24px; color: #c8a568; text-align: right; letter-spacing: 0; }
+.page-scenery-control input,
+.home-scenery-control input { width: 64px; height: 2px; accent-color: #c49b5c; cursor: pointer; }
+
+.page-atmosphere {
+  inset: 66px 0 auto 236px !important;
+  width: auto;
+  height: calc(100dvh - 66px);
+  min-height: 520px;
+}
+.page-atmosphere-base,
+.page-atmosphere-reveal {
+  overflow: hidden;
+  background-image: none !important;
+  transform: none !important;
+  animation: none !important;
+}
+.page-atmosphere-base::before {
+  position: absolute;
+  inset: -4%;
+  content: "";
+  opacity: .28;
+  background: var(--page-atmosphere-image) center / cover no-repeat;
+  filter: blur(24px) brightness(.6);
+  transform: scale(1.06);
+}
+.page-atmosphere-base > img,
+.page-atmosphere-reveal > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+  object-position: center;
+  transform: scale(var(--page-art-scale, 1));
+  transform-origin: center;
+}
+.page-atmosphere-controls {
+  right: 20px;
+  bottom: 18px;
+  z-index: 48;
+  max-width: calc(100vw - 276px);
+  gap: 3px;
+  padding: 4px;
+}
+.page-atmosphere-controls .page-visibility-control,
+.page-atmosphere-controls .page-size-control,
+.page-atmosphere-controls .page-scenery-control { min-height: 28px; padding: 0 8px; gap: 6px; }
+.page-atmosphere-controls .page-visibility-control input,
+.page-atmosphere-controls .page-size-control input,
+.page-atmosphere-controls .page-scenery-control input { width: 64px; }
+.page-atmosphere-controls button { padding: 6px 8px; font-size: 8px; }
+
+.page-content.page-dashboard {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.page-dashboard .home-stage,
+.page-dashboard .home-hero { width: 100%; max-width: none; margin: 0; }
 
 .home-art-controls {
   position: relative;
@@ -82,7 +132,8 @@
   backdrop-filter: blur(13px);
 }
 .home-art-controls button,
-.home-art-controls .home-visibility-control {
+.home-art-controls .home-visibility-control,
+.home-art-controls .home-scenery-control {
   min-height: 27px !important;
   padding: 0 8px !important;
   gap: 4px !important;
@@ -94,9 +145,13 @@
 .home-art-controls button:hover { background: rgba(255,244,222,.075) !important; }
 .home-art-controls button > span { font-size: 12px !important; }
 .home-art-controls .home-visibility-control { padding-left: 9px !important; }
-.home-art-controls .home-visibility-control input { width: 58px; }
+.home-art-controls .home-scenery-control { padding-left: 8px !important; }
+.home-art-controls .home-visibility-control input,
+.home-art-controls .home-scenery-control input { width: 52px; }
 .home-art-controls .home-visibility-control span,
-.home-art-controls .home-visibility-control output { font-size: 8px; }
+.home-art-controls .home-visibility-control output,
+.home-art-controls .home-scenery-control span,
+.home-art-controls .home-scenery-control output { font-size: 8px; }
 .home-art-controls > small {
   position: absolute;
   left: 8px;
@@ -119,15 +174,33 @@
 .page-cabinet .page-atmosphere-reveal,
 .page-history .page-atmosphere-base,
 .page-history .page-atmosphere-reveal {
-  background-size: cover !important;
-  background-position: center !important;
+  background-image: none !important;
 }
-.page-cabinet .cabinet-hero { background: linear-gradient(90deg,rgba(7,7,8,.78),rgba(7,7,8,.42),rgba(7,7,8,.14)) !important; }
-.page-cabinet .cabinet-room { background: rgba(8,8,9,.56) !important; }
-.page-history .version-hero { background: linear-gradient(108deg,rgba(8,8,9,.78),rgba(16,16,16,.52) 62%,rgba(35,29,22,.2)) !important; }
-.page-history .version-layout { background: rgba(12,12,13,.6) !important; }
-.page-history .version-sidebar { background: rgba(15,15,16,.65) !important; }
-.page-history .version-stage { background: rgba(14,14,15,.43) !important; }
+.page-cabinet .cabinet-page,
+.page-history .version-ledger { min-height: calc(100dvh - 66px); background: transparent !important; }
+.page-cabinet .cabinet-hero { background: linear-gradient(90deg,rgba(7,7,8,.7),rgba(7,7,8,.32),rgba(7,7,8,.08)) !important; }
+.page-cabinet .cabinet-room {
+  grid-template-columns: repeat(auto-fit,minmax(270px,360px));
+  justify-content: center;
+  align-items: start;
+  gap: clamp(22px,3vw,44px);
+  padding: clamp(48px,6vw,86px) clamp(24px,6vw,90px) 110px;
+  background: linear-gradient(180deg,rgba(8,8,9,.38),rgba(8,8,9,.18)) !important;
+}
+.page-cabinet .cabinet-room::before { opacity: .42; }
+.page-cabinet .cabinet-object {
+  width: 100%;
+  min-height: 310px;
+  background: linear-gradient(145deg,rgba(20,18,17,.44),rgba(8,8,9,.24));
+  backdrop-filter: blur(5px);
+}
+.page-history .version-ledger { padding: clamp(24px,4vw,58px); }
+.page-history .version-hero,
+.page-history .version-layout { width: min(1360px,100%); margin-left: auto; margin-right: auto; }
+.page-history .version-hero { background: linear-gradient(108deg,rgba(8,8,9,.7),rgba(16,16,16,.4) 62%,rgba(35,29,22,.14)) !important; }
+.page-history .version-layout { background: rgba(12,12,13,.46) !important; }
+.page-history .version-sidebar { background: rgba(15,15,16,.54) !important; }
+.page-history .version-stage { background: rgba(14,14,15,.34) !important; }
 .page-growth .growth-overview > .activity-card { background: radial-gradient(circle at 16% 8%,rgba(192,147,80,.16),transparent 32%),radial-gradient(circle at 82% 78%,rgba(95,111,105,.08),transparent 30%),linear-gradient(145deg,rgba(35,29,23,.72),rgba(14,14,15,.68) 55%,rgba(39,31,22,.66)) !important; }
 
 /* Fraktur stays ornamental, but gains breathing room and a cleaner edge. */
@@ -190,8 +263,10 @@
 }
 
 @media(max-width:720px) {
-  .background-focus-control { right: 12px; bottom: 78px; width: 154px; }
-  .background-focus-control input { width: 70px; }
+  .page-atmosphere { inset: 58px 0 auto !important; height: calc(100dvh - 58px); min-height: 440px; }
+  .page-atmosphere-controls { right: 10px; bottom: 74px; left: 10px; max-width: none; }
+  .page-atmosphere-controls .page-scenery-control { flex: 1 1 150px; }
+  .page-atmosphere-controls .page-scenery-control input { width: min(30vw,120px); }
   .home-art-controls { flex-wrap: wrap !important; border-radius: 14px; }
 }
 @media(prefers-reduced-motion:reduce) {

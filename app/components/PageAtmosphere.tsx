@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState, type ChangeEvent, type CSSProperties } from "react";
 
@@ -40,7 +41,7 @@ async function prepareImage(file: File) {
   }
 }
 
-export function PageAtmosphere({ page, title }: { page: string; title: string }) {
+export function PageAtmosphere({ page, title, sceneryFocus, onSceneryFocusChange }: { page: string; title: string; sceneryFocus: number; onSceneryFocusChange(value: number): void }) {
   const defaultArt = DEFAULT_ART[page] ?? DEFAULT_ART.framework;
   const [image, setImage] = useState(defaultArt);
   const [serverImage, setServerImage] = useState<string | null>(null);
@@ -104,7 +105,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     try {
       const stored = Number(window.localStorage.getItem(`xuli:page-visibility:${page}:v1`));
       if (stored >= .35 && stored <= 1) window.setTimeout(() => setVisibility(stored), 0);
-      const storedScale = Number(window.localStorage.getItem(`xuli:page-scale:${page}:v1`));
+      const storedScale = Number(window.localStorage.getItem(`xuli:page-scale:${page}:v2`));
       if (storedScale >= .65 && storedScale <= 1.6) window.setTimeout(() => setArtScale(storedScale), 0);
     } catch {
       // Display controls remain adjustable for the current session.
@@ -174,7 +175,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
 
   function changeArtScale(value: number) {
     setArtScale(value);
-    try { window.localStorage.setItem(`xuli:page-scale:${page}:v1`, String(value)); } catch { /* session-only */ }
+    try { window.localStorage.setItem(`xuli:page-scale:${page}:v2`, String(value)); } catch { /* session-only */ }
   }
 
   const style = {
@@ -188,8 +189,8 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
 
   return <>
     <div ref={layerRef} className="page-atmosphere" style={style} aria-hidden="true">
-      <div className="page-atmosphere-base" />
-      <div className="page-atmosphere-reveal" />
+      <div className="page-atmosphere-base"><img src={image} alt="" /></div>
+      <div className="page-atmosphere-reveal"><img src={image} alt="" /></div>
       <div className="page-atmosphere-vignette" />
       <div className="page-atmosphere-grain" />
     </div>
@@ -198,6 +199,7 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
       <input ref={serverFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadToServer} />
       <label className="page-visibility-control"><span>背景</span><input type="range" min="35" max="100" step="1" value={Math.round(visibility * 100)} onChange={(event) => changeVisibility(Number(event.target.value) / 100)} aria-label={`${title}背景可见度`} /><output>{Math.round(visibility * 100)}%</output></label>
       <label className="page-size-control"><span>大小</span><input type="range" min="65" max="160" step="1" value={Math.round(artScale * 100)} onChange={(event) => changeArtScale(Number(event.target.value) / 100)} aria-label={`${title}背景图片大小`} /><output>{Math.round(artScale * 100)}%</output></label>
+      <label className="page-scenery-control"><span>赏景</span><input type="range" min="0" max="100" step="1" value={sceneryFocus} onChange={(event) => onSceneryFocusChange(Number(event.target.value))} aria-label={`${title}页面内容透明度`} /><output>{sceneryFocus}%</output></label>
       <button type="button" onClick={() => fileRef.current?.click()} aria-label={`临时更换${title}背景`}><span aria-hidden="true">◐</span> 本机更换</button>
       <button type="button" disabled={serverUploading} onClick={() => serverFileRef.current?.click()} aria-label={`上传${title}服务器背景`}><span aria-hidden="true">⇧</span> {serverUploading ? "上传中" : "上传服务器"}</button>
       {custom && <button type="button" className="page-atmosphere-reset" onClick={() => void reset()}>恢复默认</button>}
