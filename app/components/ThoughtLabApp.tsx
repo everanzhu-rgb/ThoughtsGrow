@@ -460,6 +460,8 @@ export function ThoughtLabApp() {
   const [versionSaved, setVersionSaved] = useState(false);
   const [frameworkSaveError, setFrameworkSaveError] = useState("");
   const [activityByDay, setActivityByDay] = useState<Record<string, Array<{ kind: string; summary: string; at: string }>>>({});
+  const [usageByDay, setUsageByDay] = useState<Record<string, number>>({});
+  const [totalUsageSeconds, setTotalUsageSeconds] = useState(0);
   const [editingRecord, setEditingRecord] = useState<StoredRecord | null>(null);
   const [editingTarget, setEditingTarget] = useState<"record" | "report">("record");
   const [annotationDraft, setAnnotationDraft] = useState("");
@@ -506,7 +508,49 @@ export function ThoughtLabApp() {
 
   useEffect(() => {
     void postJson("/api/activity", { kind: "visit", summary: "打开了序理" });
-    fetch("/api/activity?days=60").then((response) => response.ok ? response.json() : null).then((data) => setActivityByDay(data?.byDay ?? {})).catch(() => undefined);
+    fetch("/api/activity?days=60").then((response) => response.ok ? response.json() : null).then((data) => {
+      setActivityByDay(data?.byDay ?? {});
+      setUsageByDay(data?.usageByDay ?? {});
+      setTotalUsageSeconds(data?.totalUsageSeconds ?? 0);
+    }).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    let lastTick = Date.now();
+    const dayKey = () => {
+      const now = new Date();
+      const offset = now.getTimezoneOffset() * 60000;
+      return new Date(now.getTime() - offset).toISOString().slice(0, 10);
+    };
+    const heartbeat = async () => {
+      const now = Date.now();
+      const deltaSeconds = Math.max(1, Math.min(60, Math.round((now - lastTick) / 1000)));
+      lastTick = now;
+      if (document.visibilityState !== "visible") return;
+      const day = dayKey();
+      const response = await fetch("/api/usage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ day, deltaSeconds }), keepalive: true }).catch(() => null);
+      if (!response?.ok) return;
+      setUsageByDay((current) => ({ ...current, [day]: (current[day] || 0) + deltaSeconds }));
+      setTotalUsageSeconds((value) => value + deltaSeconds);
+    };
+    const flushOnLeave = () => {
+      if (document.visibilityState !== "visible") return;
+      const deltaSeconds = Math.max(1, Math.min(60, Math.round((Date.now() - lastTick) / 1000)));
+      lastTick = Date.now();
+      const body = new Blob([JSON.stringify({ day: dayKey(), deltaSeconds })], { type: "application/json" });
+      navigator.sendBeacon?.("/api/usage", body);
+    };
+    const visibilityChanged = () => {
+      if (document.visibilityState === "hidden") {
+        const deltaSeconds = Math.max(1, Math.min(60, Math.round((Date.now() - lastTick) / 1000)));
+        lastTick = Date.now();
+        navigator.sendBeacon?.("/api/usage", new Blob([JSON.stringify({ day: dayKey(), deltaSeconds })], { type: "application/json" }));
+      } else lastTick = Date.now();
+    };
+    document.addEventListener("visibilitychange", visibilityChanged);
+    window.addEventListener("pagehide", flushOnLeave);
+    const timer = window.setInterval(() => void heartbeat(), 15_000);
+    return () => { document.removeEventListener("visibilitychange", visibilityChanged); window.removeEventListener("pagehide", flushOnLeave); window.clearInterval(timer); };
   }, []);
 
   useEffect(() => {
@@ -1088,7 +1132,7 @@ export function ThoughtLabApp() {
       </>
     );
     void legacyDashboard;
-    return <DynamicHome records={records} imports={knowledgeImports} topicCount={topics.length + customTopics.length} versionCount={frameworkVersions.length} onNavigate={go} />;
+    return <DynamicHome records={records} topicCount={topics.length + customTopics.length} versionCount={frameworkVersions.length} usageTotalSeconds={totalUsageSeconds} onNavigate={go} />;
   }
 
   function renderRecords() {
@@ -1306,7 +1350,7 @@ export function ThoughtLabApp() {
   }
 
   function renderGrowth() {
-    return <GrowthOverview records={records} byDay={activityByDay} onOpenRecord={(id) => { const record = records.find((item) => item.id === id); if (record) { setSelectedRecord(record); setActivePage("records"); } }} />;
+    return <GrowthOverview records={records} byDay={activityByDay} usageByDay={usageByDay} totalUsageSeconds={totalUsageSeconds} onOpenRecord={(id) => { const record = records.find((item) => item.id === id); if (record) { setSelectedRecord(record); setActivePage("records"); } }} />;
   }
 
   function renderTopics() {

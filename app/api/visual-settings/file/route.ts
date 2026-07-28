@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
-import { ensureSchema, getDb } from "@/db";
+import { getDb } from "@/db";
 import { visualSettings } from "@/db/schema";
 
 type R2Object = { body: ReadableStream; httpMetadata?: { contentType?: string } };
@@ -10,7 +10,6 @@ function filesBucket() {
 
 export async function GET(request: Request) {
   try {
-    await ensureSchema();
     const page = new URL(request.url).searchParams.get("page");
     if (!page) return new Response("Missing page", { status: 400 });
     const [setting] = await getDb().select().from(visualSettings).where(eq(visualSettings.page, page)).limit(1);

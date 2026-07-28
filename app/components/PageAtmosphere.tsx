@@ -146,12 +146,9 @@ export function PageAtmosphere({ page, title }: { page: string; title: string })
     setServerUploading(true);
     setStatus("正在上传服务器并设为此页默认背景…");
     try {
-      const form = new FormData();
-      form.set("page", page);
-      form.set("file", file);
-      const response = await fetch("/api/visual-settings", { method: "POST", body: form });
-      const payload = await response.json() as { imageUrl?: string; error?: string };
-      if (!response.ok || !payload.imageUrl) throw new Error(payload.error || "上传失败");
+      const response = await fetch("/api/visual-settings/image", { method: "POST", headers: { "Content-Type": file.type, "X-Page": page, "X-File-Size": String(file.size) }, body: file });
+      const payload = await response.json().catch(() => ({})) as { imageUrl?: string; error?: string; requestId?: string };
+      if (!response.ok || !payload.imageUrl) throw new Error(`${payload.error || "上传失败"}${payload.requestId ? `；请求编号：${payload.requestId}` : ""}`);
       setServerImage(payload.imageUrl);
       setImage(payload.imageUrl);
       setCustom(true);

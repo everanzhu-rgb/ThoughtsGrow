@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { ActivityHeatmap } from "./ActivityHeatmap";
 
 type DayItem = { kind: string; summary: string; at: string };
@@ -29,8 +29,14 @@ type Evidence = {
 
 type RelationKind = "related" | "merge" | "duplicate" | "tension";
 type Relation = { from: string; to: string; kind: RelationKind; weight: number; reason: string; confirmedId?: string };
-type Space = { id: string; name: string; kind: string; description?: string; scope?: string };
 type ConfirmedRelation = { id: string; fromRecordId: string; toRecordId: string; relation: RelationKind; reason: string };
+
+function formatDuration(seconds: number) {
+  if (seconds < 60) return `${seconds} 秒`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours ? `${hours} 小时 ${minutes} 分` : `${minutes} 分钟`;
+}
 
 const domainRules = [
   { name: "科研与学术", keywords: ["研究", "论文", "学术", "实验", "数据", "证据", "方法", "模型", "科研", "假说"] },
@@ -142,12 +148,13 @@ function graphPositions(records: GrowthRecord[]) {
   const positions = new Map<string, { x: number; y: number; domain: string }>();
   domains.forEach((domain, domainIndex) => {
     const domainAngle = (Math.PI * 2 * domainIndex) / Math.max(1, domains.length) - Math.PI / 2;
-    const centerX = 500 + Math.cos(domainAngle) * (domains.length === 1 ? 0 : 260);
-    const centerY = 285 + Math.sin(domainAngle) * (domains.length === 1 ? 0 : 165);
+    const centerX = 600 + Math.cos(domainAngle) * (domains.length === 1 ? 0 : 330);
+    const centerY = 350 + Math.sin(domainAngle) * (domains.length === 1 ? 0 : 210);
     const items = grouped.get(domain) || [];
     items.forEach((record, index) => {
       const angle = (Math.PI * 2 * index) / Math.max(1, items.length) + domainAngle;
-      const radius = items.length === 1 ? 0 : 42 + Math.min(55, items.length * 4);
+      const ring = Math.floor(index / 7);
+      const radius = items.length === 1 ? 0 : 62 + ring * 58 + Math.min(42, items.length * 3);
       positions.set(record.id, { x: centerX + Math.cos(angle) * radius, y: centerY + Math.sin(angle) * radius, domain });
     });
   });
@@ -158,18 +165,52 @@ function relationLabel(kind: RelationKind) {
   return { related: "隐性关联", merge: "建议合并", duplicate: "可能重复", tension: "观点张力" }[kind];
 }
 
-export function GrowthOverview({ records, byDay, onOpenRecord }: { records: GrowthRecord[]; byDay: Record<string, DayItem[]>; onOpenRecord: (id: string) => void }) {
+function AnimatedCount({ value, delay }: { value: number; delay: number }) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    const startAt = performance.now() + delay;
+    let frame = 0;
+    const tick = (now: number) => {
+      const progress = Math.max(0, Math.min(1, (now - startAt) / 720));
+      setShown(Math.round(value * (1 - Math.pow(1 - progress, 3))));
+      if (progress < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [delay, value]);
+  return <em>{shown}</em>;
+}
+
+export function GrowthOverview({ records, byDay, usageByDay, totalUsageSeconds, onOpenRecord }: { records: GrowthRecord[]; byDay: Record<string, DayItem[]>; usageByDay: Record<string, number>; totalUsageSeconds: number; onOpenRecord: (id: string) => void }) {
   const [range, setRange] = useState(30);
-  const [spaces, setSpaces] = useState<Space[]>([]);
   const [focusedDomain, setFocusedDomain] = useState("");
   const [focusedNode, setFocusedNode] = useState("");
   const [graphScale, setGraphScale] = useState(1);
+  const [graphPan, setGraphPan] = useState({ x: 0, y: 0 });
+  const [nodeOffsets, setNodeOffsets] = useState<Record<string, { x: number; y: number }>>({});
+  const [graphEntered, setGraphEntered] = useState(false);
+  const [playingIntro, setPlayingIntro] = useState(false);
   const [confirmedRelations, setConfirmedRelations] = useState<ConfirmedRelation[]>([]);
   const [relationMessage, setRelationMessage] = useState("");
   const [timeAnchor] = useState(() => Date.now());
+  const graphRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ kind: "canvas" | "node"; id?: string; startX: number; startY: number; originX: number; originY: number } | null>(null);
 
-  useEffect(() => { void fetch("/api/bases").then((response) => response.ok ? response.json() : Promise.reject()).then((data) => setSpaces(data.spaces || [])).catch(() => setSpaces([])); }, []);
   useEffect(() => { void fetch("/api/record-relations").then((response) => response.ok ? response.json() : Promise.reject()).then((data) => setConfirmedRelations(data.relations || [])).catch(() => setConfirmedRelations([])); }, []);
+  useEffect(() => {
+    const element = graphRef.current;
+    if (!element) return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (!entry.isIntersecting || graphEntered) return;
+      setGraphEntered(true);
+      if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        setPlayingIntro(true);
+        window.setTimeout(() => setPlayingIntro(false), Math.min(3600, 900 + records.length * 90));
+      }
+    }, { threshold: .18 });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [graphEntered, records.length]);
 
   const recentRecords = useMemo(() => {
     const since = timeAnchor - range * 86400000;
@@ -186,20 +227,47 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
     return [...confirmed, ...inferredRelations.filter((relation) => !keys.has([relation.from, relation.to].sort().join("::")))];
   }, [confirmedRelations, graphRecords, inferredRelations]);
   const positions = useMemo(() => graphPositions(graphRecords), [graphRecords]);
+  const displayPositions = useMemo(() => new Map([...positions].map(([id, point]) => {
+    const offset = nodeOffsets[id] || { x: 0, y: 0 };
+    return [id, { ...point, x: point.x + offset.x, y: point.y + offset.y }];
+  })), [nodeOffsets, positions]);
   const selectedRecord = graphRecords.find((record) => record.id === focusedNode) || graphRecords[0];
   const selectedRelations = selectedRecord ? relations.filter((relation) => relation.from === selectedRecord.id || relation.to === selectedRecord.id) : [];
   const activeDays = Object.values(byDay).filter((items) => items.length).length;
   const textVolume = records.reduce((sum, record) => sum + compactText(`${record.content}${record.note}${record.summary}`).length, 0);
-  const domainCount = spaces.filter((space) => space.kind === "domain").length || new Set(records.map(primaryDomain)).size;
   const stats = [
     { label: "现有记录", value: records.length.toLocaleString("zh-CN"), note: "可追溯的思维证据" },
-    { label: "领域基座", value: domainCount.toLocaleString("zh-CN"), note: "正在生长的知识领域" },
+    { label: "总体使用时间", value: formatDuration(totalUsageSeconds), note: "陪伴思考的累计时长" },
     { label: "文字沉淀", value: textVolume >= 10000 ? `${(textVolume / 10000).toFixed(1)} 万` : textVolume.toLocaleString("zh-CN"), note: "原文、札记与摘要" },
     { label: "活跃日", value: activeDays.toLocaleString("zh-CN"), note: "近 60 天留下痕迹" },
   ];
   const maxEvidence = Math.max(1, ...focus.map((item) => item.evidence.length));
-  const viewWidth = 1000 / graphScale; const viewHeight = 570 / graphScale;
-  const viewBox = `${500 - viewWidth / 2} ${285 - viewHeight / 2} ${viewWidth} ${viewHeight}`;
+  const viewWidth = 1200 / graphScale; const viewHeight = 700 / graphScale;
+  const viewBox = `${600 + graphPan.x - viewWidth / 2} ${350 + graphPan.y - viewHeight / 2} ${viewWidth} ${viewHeight}`;
+
+  function beginCanvasDrag(event: ReactPointerEvent<HTMLDivElement>) {
+    if ((event.target as Element).closest(".relation-nodes")) return;
+    dragRef.current = { kind: "canvas", startX: event.clientX, startY: event.clientY, originX: graphPan.x, originY: graphPan.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+
+  function beginNodeDrag(event: ReactPointerEvent<SVGGElement>, id: string) {
+    event.stopPropagation();
+    const offset = nodeOffsets[id] || { x: 0, y: 0 };
+    dragRef.current = { kind: "node", id, startX: event.clientX, startY: event.clientY, originX: offset.x, originY: offset.y };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setFocusedNode(id);
+  }
+
+  function moveGraph(event: ReactPointerEvent<HTMLDivElement>) {
+    const drag = dragRef.current;
+    if (!drag) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const dx = (event.clientX - drag.startX) * viewWidth / Math.max(1, rect.width);
+    const dy = (event.clientY - drag.startY) * viewHeight / Math.max(1, rect.height);
+    if (drag.kind === "canvas") setGraphPan({ x: drag.originX - dx, y: drag.originY - dy });
+    else if (drag.id) setNodeOffsets((current) => ({ ...current, [drag.id!]: { x: drag.originX + dx, y: drag.originY + dy } }));
+  }
 
   async function confirmRelation(relation: Relation) {
     if (relation.confirmedId) return;
@@ -213,10 +281,10 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
   return <div className="growth-overview">
     <header className="growth-overview-hero">
       <div><span>GROWTH ATLAS · 成长分析</span><h1 className="gothic-display-title">Growth<br /><span>Atlas</span></h1><p>不评判你“有多强”，只把真实记录、近期关注与潜在连接放在同一张桌面上。</p></div>
-      <div className="growth-hero-orbit" aria-hidden="true"><i /><i /><i /><strong>{records.length}</strong><span>THOUGHT<br />TRACES</span></div>
+      <div className="growth-hero-orbit" aria-hidden="true">{records.slice(0, 28).map((record, index, items) => <b key={record.id} style={{ "--orbit-radius": `${82 + (index % 4) * 24}px`, "--orbit-size": `${3 + (index % 3)}px`, "--orbit-angle": `${360 / Math.max(1, items.length) * index}deg`, "--orbit-speed": `${24 + (index % 7) * 4}s` } as CSSProperties} />)}<strong>{records.length}</strong><span>THOUGHT<br />TRACES</span></div>
     </header>
 
-    <ActivityHeatmap byDay={byDay} days={60} stats={stats} />
+    <ActivityHeatmap byDay={byDay} usageByDay={usageByDay} days={60} stats={stats} />
 
     <section className="focus-panel card">
       <header className="growth-section-head">
@@ -227,8 +295,8 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
         <div className="focus-chart" role="img" aria-label={`最近 ${range} 天关注领域证据柱状图`}>
           <div className="focus-y-axis"><span>{maxEvidence}</span><span>{Math.ceil(maxEvidence / 2)}</span><span>0</span></div>
           <div className="focus-bars">
-            {focus.map((domain) => <button type="button" key={domain.name} className={shownFocus?.name === domain.name ? "active" : ""} onMouseEnter={() => setFocusedDomain(domain.name)} onFocus={() => setFocusedDomain(domain.name)} onClick={() => setFocusedDomain(domain.name)} aria-label={`${domain.name}，${domain.evidence.length} 条证据`}>
-              <span className="focus-count">{domain.evidence.length}<small>条</small></span><i style={{ height: `${Math.max(12, (domain.evidence.length / maxEvidence) * 100)}%` }} /><strong>{domain.name}</strong>
+            {focus.map((domain, index) => <button type="button" key={domain.name} className={shownFocus?.name === domain.name ? "active" : ""} style={{ "--bar-delay": `${index * 90}ms` } as CSSProperties} onMouseEnter={() => setFocusedDomain(domain.name)} onFocus={() => setFocusedDomain(domain.name)} onClick={() => setFocusedDomain(domain.name)} aria-label={`${domain.name}，${domain.evidence.length} 条证据`}>
+              <span className="focus-count"><AnimatedCount value={domain.evidence.length} delay={index * 90} /><small>条</small></span><i style={{ "--bar-height": `${Math.max(12, (domain.evidence.length / maxEvidence) * 100)}%` } as CSSProperties} /><strong>{domain.name}</strong>
             </button>)}
           </div>
         </div>
@@ -239,14 +307,14 @@ export function GrowthOverview({ records, byDay, onOpenRecord }: { records: Grow
     <section className="relation-panel card">
       <header className="growth-section-head relation-head">
         <div><span>HIDDEN RELATIONS · 暗线图谱</span><h2>记录并非孤岛</h2><p>图谱用主题、标签与文本相似性寻找隐性关联。它只提出可检查的线索，不替你武断地下结论。</p></div>
-        <div className="graph-tools"><button type="button" onClick={() => setGraphScale((value) => Math.max(.8, value - .15))} aria-label="缩小图谱">−</button><span>{Math.round(graphScale * 100)}%</span><button type="button" onClick={() => setGraphScale((value) => Math.min(1.75, value + .15))} aria-label="放大图谱">＋</button></div>
+        <div className="graph-tools"><button type="button" onClick={() => setGraphScale((value) => Math.max(.65, value - .15))} aria-label="缩小图谱">−</button><span>{Math.round(graphScale * 100)}%</span><button type="button" onClick={() => setGraphScale((value) => Math.min(2.2, value + .15))} aria-label="放大图谱">＋</button><button type="button" onClick={() => { setGraphPan({ x: 0, y: 0 }); setNodeOffsets({}); setGraphScale(1); }}>复位</button>{playingIntro && <button type="button" className="skip-graph-intro" onClick={() => setPlayingIntro(false)}>跳过动画</button>}</div>
       </header>
       <div className="relation-legend"><span><i className="related" />隐性关联</span><span><i className="merge" />建议合并</span><span><i className="duplicate" />可能重复</span><span><i className="tension" />观点张力</span></div>
       {graphRecords.length ? <div className="relation-workbench">
-        <div className="relation-canvas">
+        <div ref={graphRef} className={`relation-canvas ${playingIntro ? "graph-entering" : ""}`} onPointerDown={beginCanvasDrag} onPointerMove={moveGraph} onPointerUp={() => { dragRef.current = null; }} onPointerCancel={() => { dragRef.current = null; }} onWheel={(event) => { event.preventDefault(); setGraphScale((value) => Math.max(.65, Math.min(2.2, value + (event.deltaY < 0 ? .1 : -.1)))); }}>
           <svg viewBox={viewBox} role="img" aria-label="思维记录关系图谱">
-            <g className="relation-edges">{relations.map((relation, index) => { const from = positions.get(relation.from)!; const to = positions.get(relation.to)!; const midX = (from.x + to.x) / 2; const midY = (from.y + to.y) / 2; const dx = to.x - from.x; const dy = to.y - from.y; const length = Math.max(1, Math.hypot(dx, dy)); const curve = ((index % 5) - 2) * 9; const controlX = midX - (dy / length) * curve; const controlY = midY + (dx / length) * curve; const selected = selectedRecord && (relation.from === selectedRecord.id || relation.to === selectedRecord.id); return <g key={`${relation.from}-${relation.to}`} className={`${relation.kind} ${relation.confirmedId ? "confirmed" : ""} ${selected ? "selected" : ""}`}><path d={`M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`} /><circle cx={midX} cy={midY} r={relation.confirmedId ? 4 : 2.5} /><text x={midX} y={midY - 8} textAnchor="middle">{relation.confirmedId ? `已确认 · ${relationLabel(relation.kind)}` : relationLabel(relation.kind)}</text></g>; })}</g>
-            <g className="relation-nodes">{graphRecords.map((record) => { const position = positions.get(record.id)!; const active = selectedRecord?.id === record.id; const radius = 9 + Math.min(8, record.importance || 3); return <g key={record.id} role="button" tabIndex={0} aria-label={`${record.title}，${position.domain}`} className={active ? "active" : ""} onMouseEnter={() => setFocusedNode(record.id)} onFocus={() => setFocusedNode(record.id)} onClick={() => setFocusedNode(record.id)} onKeyDown={(event) => { if (event.key === "Enter") setFocusedNode(record.id); }}><circle cx={position.x} cy={position.y} r={radius + (active ? 7 : 0)} className="node-halo" /><circle cx={position.x} cy={position.y} r={radius} /><text x={position.x} y={position.y + radius + 17} textAnchor="middle">{record.title.slice(0, 9)}{record.title.length > 9 ? "…" : ""}</text></g>; })}</g>
+            <g className="relation-edges">{relations.map((relation, index) => { const from = displayPositions.get(relation.from)!; const to = displayPositions.get(relation.to)!; const midX = (from.x + to.x) / 2; const midY = (from.y + to.y) / 2; const dx = to.x - from.x; const dy = to.y - from.y; const length = Math.max(1, Math.hypot(dx, dy)); const curve = ((index % 5) - 2) * 12; const controlX = midX - (dy / length) * curve; const controlY = midY + (dx / length) * curve; const selected = selectedRecord && (relation.from === selectedRecord.id || relation.to === selectedRecord.id); return <g key={`${relation.from}-${relation.to}`} style={{ "--graph-delay": `${Math.min(1500, index * 45 + 350)}ms` } as CSSProperties} className={`${relation.kind} ${relation.confirmedId ? "confirmed" : ""} ${selected ? "selected" : ""}`}><path d={`M ${from.x} ${from.y} Q ${controlX} ${controlY} ${to.x} ${to.y}`} /><circle cx={midX} cy={midY} r={relation.confirmedId ? 4 : 2.5} /><text x={midX} y={midY - 8} textAnchor="middle">{relation.confirmedId ? `已确认 · ${relationLabel(relation.kind)}` : relationLabel(relation.kind)}</text></g>; })}</g>
+            <g className="relation-nodes">{graphRecords.map((record, index) => { const position = displayPositions.get(record.id)!; const active = selectedRecord?.id === record.id; const connected = selectedRelations.some((relation) => relation.from === record.id || relation.to === record.id); const radius = 11 + Math.min(8, record.importance || 3); return <g key={record.id} role="button" tabIndex={0} aria-label={`${record.title}，${position.domain}`} style={{ "--graph-delay": `${index * 85}ms` } as CSSProperties} className={`${active ? "active" : ""} ${connected ? "connected" : ""}`} onPointerDown={(event) => beginNodeDrag(event, record.id)} onFocus={() => setFocusedNode(record.id)} onClick={() => setFocusedNode(record.id)} onKeyDown={(event) => { if (event.key === "Enter") setFocusedNode(record.id); }}><circle cx={position.x} cy={position.y} r={radius + (active ? 9 : 0)} className="node-halo" /><circle cx={position.x} cy={position.y} r={radius} /><text x={position.x} y={position.y + radius + 20} textAnchor="middle">{record.title.slice(0, 12)}{record.title.length > 12 ? "…" : ""}</text></g>; })}</g>
           </svg>
         </div>
         <aside className="relation-inspector" aria-live="polite">{selectedRecord && <><span>{primaryDomain(selectedRecord)}</span><h3>{selectedRecord.title || "未命名记录"}</h3><p>{excerpt(selectedRecord.summary || selectedRecord.content, 130)}</p><div className="relation-suggestions">{selectedRelations.length ? selectedRelations.sort((a, b) => b.weight - a.weight).map((relation) => { const otherId = relation.from === selectedRecord.id ? relation.to : relation.from; const other = graphRecords.find((record) => record.id === otherId)!; return <article key={`${relation.from}-${relation.to}`}><button type="button" className="relation-jump" onClick={() => setFocusedNode(otherId)}><i className={relation.kind}>{relationLabel(relation.kind)}</i><strong>{other.title}</strong><p>{relation.reason}</p></button><button type="button" className={`confirm-relation ${relation.confirmedId ? "confirmed" : ""}`} disabled={Boolean(relation.confirmedId)} onClick={() => void confirmRelation(relation)}>{relation.confirmedId ? "✓ 已写入记录" : "确认这条关系"}</button></article>; }) : <div className="relation-none">暂未发现强关联。它可能是一条真正的新枝，也可能需要更多上下文。</div>}</div>{relationMessage && <small className="relation-message">{relationMessage}</small>}<button type="button" className="open-record-link" onClick={() => onOpenRecord(selectedRecord.id)}>打开这条记录 →</button></>}</aside>

@@ -2,11 +2,10 @@
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type PointerEvent } from "react";
 
-type Quote = { quote: string; translation: string; author: string; source: string; language: string };
+type Quote = { quote: string; translation: string; author: string; source: string; sourceUrl: string; language: string; era: "古典" | "现代" | "当代" };
 type Favorite = Quote & { id: string };
 
 const DEFAULT_HERO_IMAGE = "/visuals/xuli-female-portrait-hero.png";
-const HERO_IMAGE_STORAGE_KEY = "xuli:home-hero-image:v1";
 const HERO_VISIBILITY_STORAGE_KEY = "xuli:home-hero-visibility:v1";
 
 async function prepareHeroImage(file: File) {
@@ -36,32 +35,45 @@ async function prepareHeroImage(file: File) {
 }
 
 const quotes: Quote[] = [
-  { quote: "我们不是在寻找一条永远正确的路，而是在练习随时校正方向。", translation: "", author: "序理", source: "《序理》产品引言 · 原创", language: "zh" },
-  { quote: "The unexamined life is not worth living.", translation: "未经省察的人生，不值得过。", author: "Plato", source: "Apology · 38a", language: "en" },
-  { quote: "Il faut cultiver notre jardin.", translation: "我们必须耕耘自己的园地。", author: "Voltaire", source: "Candide · Chapter 30", language: "fr" },
-  { quote: "Sapere aude.", translation: "敢于求知。", author: "Horace", source: "Epistles · I.2.40", language: "la" },
-  { quote: "你不必一次看见整片森林，先辨认脚下这棵树的纹理。", translation: "", author: "序理", source: "《序理》每日札记 · 原创", language: "zh" },
-  { quote: "思考的锋芒，不在于迅速反驳，而在于允许事实改变自己。", translation: "", author: "序理", source: "《序理》每日札记 · 原创", language: "zh" },
+  { quote: "学而不思则罔，思而不学则殆。", translation: "", author: "孔子", source: "《论语·为政》", sourceUrl: "https://ctext.org/analects/wei-zheng/zh", language: "zh", era: "古典" },
+  { quote: "The life which is unexamined is not worth living.", translation: "未经省察的人生，不值得过。", author: "Socrates / Plato", source: "Apology", sourceUrl: "https://classics.mit.edu/Plato/apology.html", language: "en", era: "古典" },
+  { quote: "知人者智，自知者明。", translation: "", author: "老子", source: "《道德经》第三十三章", sourceUrl: "https://ctext.org/dao-de-jing/zh", language: "zh", era: "古典" },
+  { quote: "Il faut cultiver notre jardin.", translation: "我们必须耕耘自己的园地。", author: "Voltaire", source: "Candide · Chapter 30", sourceUrl: "https://www.gutenberg.org/ebooks/19942", language: "fr", era: "现代" },
+  { quote: "尽信书，则不如无书。", translation: "", author: "孟子", source: "《孟子·尽心下》", sourceUrl: "https://ctext.org/mengzi/jin-xin-ii/zh", language: "zh", era: "古典" },
+  { quote: "Sapere aude! Have courage to use your own understanding.", translation: "敢于运用你自己的理性。", author: "Immanuel Kant", source: "What Is Enlightenment?", sourceUrl: "https://en.wikisource.org/wiki/What_is_Enlightenment%3F", language: "en", era: "现代" },
+  { quote: "There is no courage without vulnerability.", translation: "没有脆弱，就没有勇气。", author: "Brené Brown", source: "Taken for Granted · TED, 2021", sourceUrl: "https://www.ted.com/podcasts/brene-brown-on-what-vulnerability-isnt-transcript", language: "en", era: "当代" },
+  { quote: "You do not rise to the level of your goals. You fall to the level of your systems.", translation: "你不会上升到目标的高度，而会落到系统的水平。", author: "James Clear", source: "Atomic Habits", sourceUrl: "https://jamesclear.com/quotes/you-do-not-rise-to-the-level-of-your-goals-you-fall-to-the-level-of-your-systems", language: "en", era: "当代" },
+  { quote: "凡事豫则立，不豫则废。", translation: "", author: "《礼记》", source: "《中庸》", sourceUrl: "https://ctext.org/liji/zhong-yong/zh", language: "zh", era: "古典" },
+  { quote: "He who has a why to live can bear almost any how.", translation: "知道为何而活的人，几乎能承受任何生活方式。", author: "Friedrich Nietzsche", source: "Twilight of the Idols", sourceUrl: "https://www.gutenberg.org/ebooks/52263", language: "en", era: "现代" },
 ];
+
+function formatDuration(seconds: number) {
+  if (seconds < 60) return `${seconds} 秒`;
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours ? `${hours} 小时 ${minutes} 分` : `${minutes} 分钟`;
+}
 
 type HomeTarget = "framework" | "knowledge" | "analyze" | "history" | "records" | "growth" | "topics" | "new" | "cabinet";
 
-export function DynamicHome({ records, imports, topicCount, versionCount, onNavigate }: {
+export function DynamicHome({ records, topicCount, versionCount, usageTotalSeconds, onNavigate }: {
   records: Array<{ id: string; title: string; createdAt: string }>;
-  imports: Array<{ id: string; disposition: string }>;
   topicCount: number;
   versionCount: number;
+  usageTotalSeconds: number;
   onNavigate(page: HomeTarget): void;
 }) {
   const [quoteIndex, setQuoteIndex] = useState(() => Math.floor(Date.now() / 86_400_000) % quotes.length);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [saving, setSaving] = useState(false);
   const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
+  const [serverImage, setServerImage] = useState<string | null>(null);
   const [customHero, setCustomHero] = useState(false);
   const [heroImageStatus, setHeroImageStatus] = useState("");
   const [heroVisibility, setHeroVisibility] = useState(.78);
   const heroRef = useRef<HTMLElement>(null);
   const heroFileRef = useRef<HTMLInputElement>(null);
+  const heroServerFileRef = useRef<HTMLInputElement>(null);
   const rawPointer = useRef({ x: -999, y: -999 });
   const smoothPointer = useRef({ x: -999, y: -999 });
   const current = quotes[quoteIndex];
@@ -76,19 +88,22 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
   useEffect(() => {
     let cancelled = false;
     try {
-      const stored = window.localStorage.getItem(HERO_IMAGE_STORAGE_KEY);
       const storedVisibility = Number(window.localStorage.getItem(HERO_VISIBILITY_STORAGE_KEY));
-      if (stored) {
-        window.setTimeout(() => {
-          if (cancelled) return;
-          setHeroImage(stored);
-          setCustomHero(true);
-        }, 0);
-      }
       if (storedVisibility >= .45 && storedVisibility <= 1) window.setTimeout(() => { if (!cancelled) setHeroVisibility(storedVisibility); }, 0);
     } catch {
       // A blocked browser preference store should not prevent the home page from loading.
     }
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/visual-settings?page=dashboard").then((response) => response.ok ? response.json() : null).then((data) => {
+      if (cancelled || !data?.imageUrl) return;
+      setServerImage(data.imageUrl);
+      setHeroImage(data.imageUrl);
+      setCustomHero(true);
+    }).catch(() => undefined);
     return () => { cancelled = true; };
   }, []);
 
@@ -154,12 +169,7 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
       const prepared = await prepareHeroImage(file);
       setHeroImage(prepared);
       setCustomHero(true);
-      try {
-        window.localStorage.setItem(HERO_IMAGE_STORAGE_KEY, prepared);
-        setHeroImageStatus("已保存为这台设备的首页主视觉");
-      } catch {
-        setHeroImageStatus("图片已应用；浏览器空间不足，刷新后可能恢复默认");
-      }
+      setHeroImageStatus("已暂存为本次访问的导航页壁纸；刷新后恢复服务器版本");
     } catch (error) {
       setHeroImageStatus(error instanceof Error ? error.message : "图片处理失败，请换一张试试。");
     } finally {
@@ -167,15 +177,34 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
     }
   }
 
-  function resetHeroImage() {
-    try {
-      window.localStorage.removeItem(HERO_IMAGE_STORAGE_KEY);
-    } catch {
-      // The visual can still be reset for the current session.
+  async function uploadHeroToServer(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 15 * 1024 * 1024) {
+      setHeroImageStatus("请选择 15 MB 以内的 JPG、PNG 或 WebP 图片。");
+      event.target.value = "";
+      return;
     }
-    setHeroImage(DEFAULT_HERO_IMAGE);
-    setCustomHero(false);
-    setHeroImageStatus("已恢复序理默认雕塑");
+    setHeroImageStatus("正在上传服务器并设为导航页壁纸…");
+    try {
+      const response = await fetch("/api/visual-settings/image", { method: "POST", headers: { "Content-Type": file.type, "X-Page": "dashboard", "X-File-Size": String(file.size) }, body: file });
+      const data = await response.json().catch(() => ({})) as { imageUrl?: string; error?: string; requestId?: string };
+      if (!response.ok || !data.imageUrl) throw new Error(`${data.error || "上传失败"}${data.requestId ? `；请求编号：${data.requestId}` : ""}`);
+      setServerImage(data.imageUrl);
+      setHeroImage(data.imageUrl);
+      setCustomHero(true);
+      setHeroImageStatus("已上传服务器，并设为导航页共享壁纸");
+    } catch (error) {
+      setHeroImageStatus(error instanceof Error ? error.message : "服务器上传失败");
+    } finally {
+      event.target.value = "";
+    }
+  }
+
+  function resetHeroImage() {
+    setHeroImage(serverImage || DEFAULT_HERO_IMAGE);
+    setCustomHero(Boolean(serverImage));
+    setHeroImageStatus(serverImage ? "已恢复服务器壁纸" : "已恢复序理默认雕塑");
   }
 
   const portals: Array<{ page: HomeTarget; code: string; title: string; note: string }> = [
@@ -211,15 +240,17 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
         <div className="home-primary-actions"><button className="home-launch" onClick={() => onNavigate("new")}><span>＋</span>开始一次思考</button><button className="home-quiet-link" onClick={() => onNavigate("framework")}>进入思维基座 <span>↗</span></button></div>
         <div className="home-art-controls">
           <input ref={heroFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroImage} />
+          <input ref={heroServerFileRef} type="file" accept="image/jpeg,image/png,image/webp" onChange={uploadHeroToServer} />
           <label className="home-visibility-control"><span>背景可见度</span><input type="range" min="45" max="100" step="1" value={Math.round(heroVisibility * 100)} onChange={(event) => changeHeroVisibility(Number(event.target.value) / 100)} aria-label="首页背景可见度" /><output>{Math.round(heroVisibility * 100)}%</output></label>
-          <button type="button" onClick={() => heroFileRef.current?.click()}><span aria-hidden="true">◌</span>{customHero ? "更换我的主视觉" : "上传我的主视觉"}</button>
+          <button type="button" onClick={() => heroFileRef.current?.click()}><span aria-hidden="true">◌</span>本次暂存</button>
+          <button type="button" onClick={() => heroServerFileRef.current?.click()}><span aria-hidden="true">⇧</span>上传服务器</button>
           {customHero && <button type="button" className="home-art-reset" onClick={resetHeroImage}>恢复默认</button>}
-          <small aria-live="polite">{heroImageStatus || "图片只保存在当前设备，不会上传到服务器"}</small>
+          <small aria-live="polite">{heroImageStatus || "可只在本次访问暂存，也可上传为共享壁纸"}</small>
         </div>
       </div>
       <div className="home-data-constellation">
         <div><small>记录</small><strong>{records.length}</strong><span>THOUGHTS</span></div>
-        <div><small>材料</small><strong>{imports.length}</strong><span>SOURCES</span></div>
+        <div><small>所用时间</small><strong>{formatDuration(usageTotalSeconds)}</strong><span>TIME WITH XULI</span></div>
         <div><small>收藏</small><strong>{favorites.length}</strong><span>KEEPSAKES</span></div>
         <div><small>活跃日</small><strong>{activeDays}</strong><span>ACTIVE DAYS</span></div>
         <div><small>版本 / 专题</small><strong>{Math.max(versionCount, 1)} · {topicCount}</strong><span>EVOLUTION</span></div>
@@ -229,10 +260,10 @@ export function DynamicHome({ records, imports, topicCount, versionCount, onNavi
     <section className="home-bottom-grid">
       <article className="home-quote-card">
         <div className="quote-progress"><i key={quoteIndex} /></div>
-        <span>{current.language.toUpperCase()} · 今日漂流句</span>
+        <span>{current.language.toUpperCase()} · {current.era} · 今日漂流句</span>
         <blockquote>“{current.quote}”</blockquote>
         {current.translation && <p className="quote-translation">{current.translation}</p>}
-        <footer><small>— {current.author} · {current.source}</small><div><button aria-label="换一句" onClick={() => setQuoteIndex((quoteIndex + 1) % quotes.length)}>↻</button><button className={favorite ? "active" : ""} disabled={saving} onClick={toggleFavorite}>{favorite ? "已收藏 ♥" : "快速收藏 ♡"}</button></div></footer>
+        <footer><small>— {current.author} · <a href={current.sourceUrl} target="_blank" rel="noreferrer">{current.source} ↗</a></small><div><button aria-label="换一句" onClick={() => setQuoteIndex((quoteIndex + 1) % quotes.length)}>↻</button><button className={favorite ? "active" : ""} disabled={saving} onClick={toggleFavorite}>{favorite ? "已收藏 ♥" : "快速收藏 ♡"}</button></div></footer>
       </article>
       <article className="home-recent-card"><span>RECENT TRACE</span><h2>最近留下的三道痕迹</h2>{records.slice(0, 3).map((record, index) => <button key={record.id} onClick={() => onNavigate("records")}><span>0{index + 1}</span><strong>{record.title}</strong><small>{new Date(record.createdAt).toLocaleDateString("zh-CN", { month: "short", day: "numeric" })}</small></button>)}{!records.length && <p>还没有记录。第一道痕迹正等你落笔。</p>}</article>
     </section>

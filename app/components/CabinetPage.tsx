@@ -23,11 +23,19 @@ type ApiPayload = {
   material?: { id: string };
 };
 
+type CabinetComment = { id: string; cabinetItemId: string; content: string; createdAt: string };
+
 const ACCEPTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024;
 
 async function responsePayload(response: Response) {
   return (await response.json().catch(() => ({}))) as ApiPayload;
+}
+
+function SourceLine({ value }: { value: string }) {
+  const url = value.match(/https?:\/\/\S+$/)?.[0];
+  const label = url ? value.slice(0, -url.length).replace(/[·\s]+$/, "") : value;
+  return <>{label}{url && <> · <a href={url} target="_blank" rel="noreferrer" onClick={(event) => event.stopPropagation()}>查看出处 ↗</a></>}</>;
 }
 
 export function CabinetPage() {
@@ -41,6 +49,11 @@ export function CabinetPage() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [messageKind, setMessageKind] = useState<"info" | "success" | "error">("info");
+  const [selectedItem, setSelectedItem] = useState<CabinetItem | null>(null);
+  const [comments, setComments] = useState<CabinetComment[]>([]);
+  const [commentDraft, setCommentDraft] = useState("");
+  const [commentBusy, setCommentBusy] = useState(false);
+  const [commentMessage, setCommentMessage] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -145,13 +158,40 @@ export function CabinetPage() {
     }
   }
 
+  async function openItem(item: CabinetItem) {
+    setSelectedItem(item);
+    setComments([]);
+    setCommentMessage("正在读取留言…");
+    const response = await fetch(`/api/cabinet/comments?itemId=${encodeURIComponent(item.id)}`);
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) { setCommentMessage(data.error || "留言读取失败"); return; }
+    setComments(data.comments || []);
+    setCommentMessage("");
+  }
+
+  async function addComment() {
+    if (!selectedItem || !commentDraft.trim()) return;
+    setCommentBusy(true);
+    setCommentMessage("正在留下此刻的想法…");
+    try {
+      const response = await fetch("/api/cabinet/comments", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ itemId: selectedItem.id, content: commentDraft }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data.comment) throw new Error(data.error || "留言保存失败");
+      setComments((items) => [data.comment, ...items]);
+      setCommentDraft("");
+      setCommentMessage("已记录，并保留此刻时间。");
+    } catch (error) {
+      setCommentMessage(error instanceof Error ? error.message : "留言保存失败");
+    } finally { setCommentBusy(false); }
+  }
+
   return <div className="cabinet-page">
     <header className="cabinet-hero"><span>THE CABINET OF FOUND LIGHT · 拾光橱 · 我的收藏</span><h1 className="gothic-display-title">Cabinet<br /><span>of Light</span></h1><p>把偶然击中你的句子与图像陈列起来。它们不必立即成为方法，也可以只是值得反复凝视的光。</p><button type="button" onClick={() => document.getElementById("cabinet-compose")?.scrollIntoView({ behavior: "smooth" })}>放入一件新收藏 ↓</button></header>
     <section className="cabinet-room" aria-label="收藏展示橱">
       <div className="cabinet-glow" aria-hidden="true" />
-      {items.length ? items.map((item, index) => <article className={`cabinet-object kind-${item.kind}`} key={item.id} style={{ "--delay": `${(index % 8) * 70}ms` } as React.CSSProperties}>
+      {items.length ? items.map((item, index) => <article className={`cabinet-object kind-${item.kind}`} key={item.id} role="button" tabIndex={0} aria-label={`大屏查看 ${item.title || "无题收藏"}`} onClick={() => void openItem(item)} onKeyDown={(event) => { if (event.key === "Enter") void openItem(item); }} style={{ "--delay": `${(index % 8) * 70}ms` } as React.CSSProperties}>
         {item.imageUrl ? <img src={item.imageUrl} alt={item.title || "收藏图片"} /> : <blockquote>“{item.content}”</blockquote>}
-        <div><small>{item.kind === "image" ? "IMAGE" : "WORDS"} · {new Date(item.createdAt).toLocaleDateString("zh-CN")}</small><strong>{item.title || "无题收藏"}</strong>{item.note && <p>{item.note}</p>}<span>{item.source}</span><button type="button" title="移出收藏橱" onClick={() => void remove(item)}>×</button></div>
+        <div><small>{item.kind === "image" ? "IMAGE" : "WORDS"} · {new Date(item.createdAt).toLocaleDateString("zh-CN")}</small><strong>{item.title || "无题收藏"}</strong>{item.note && <p>{item.note}</p>}<span><SourceLine value={item.source} /></span><button type="button" title="移出收藏橱" onClick={(event) => { event.stopPropagation(); void remove(item); }}>×</button></div>
       </article>) : <div className="cabinet-empty">橱窗还空着。Home 页收藏的漂流句会自动来到这里。</div>}
     </section>
     <section className="cabinet-compose card" id="cabinet-compose">
@@ -166,5 +206,6 @@ export function CabinetPage() {
       {message && <p className={`cabinet-feedback ${messageKind}`} role={messageKind === "error" ? "alert" : "status"} aria-live="polite">{message}</p>}
       <button type="button" className="primary-button" disabled={busy || (!content.trim() && !imageUrl)} onClick={() => void save()}>{busy ? "正在安放…" : "放入收藏橱"}</button>
     </section>
+    {selectedItem && <div className="cabinet-viewer-backdrop" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setSelectedItem(null); }}><section className="cabinet-viewer" role="dialog" aria-modal="true" aria-label={`查看 ${selectedItem.title || "收藏"}`}><button className="cabinet-viewer-close" aria-label="关闭大屏查看" onClick={() => setSelectedItem(null)}>×</button><div className="cabinet-viewer-art">{selectedItem.imageUrl ? <img src={selectedItem.imageUrl} alt={selectedItem.title || "收藏图片"} /> : <blockquote>“{selectedItem.content}”</blockquote>}<footer><span>{selectedItem.kind === "image" ? "IMAGE" : "WORDS"}</span><strong>{selectedItem.title || "无题收藏"}</strong><p>{selectedItem.note}</p><small><SourceLine value={selectedItem.source} /></small></footer></div><aside className="cabinet-reflection"><header><span>AFTERLIGHT · 留言与感悟</span><h2>每次重逢，都留下时间</h2><p>新的理解不会覆盖旧的你，它们会按时间依次保留。</p></header><div className="cabinet-comment-compose"><textarea value={commentDraft} onChange={(event) => setCommentDraft(event.target.value)} placeholder="写下此刻的感悟、评价或联想…" /><button disabled={commentBusy || !commentDraft.trim()} onClick={() => void addComment()}>{commentBusy ? "记录中…" : "留下此刻"}</button>{commentMessage && <small aria-live="polite">{commentMessage}</small>}</div><div className="cabinet-comment-list">{comments.length ? comments.map((comment) => <article key={comment.id}><time>{new Date(comment.createdAt).toLocaleString("zh-CN", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time><p>{comment.content}</p></article>) : !commentMessage && <p className="cabinet-comment-empty">还没有留言。第一次重逢，正等待你命名。</p>}</div></aside></section></div>}
   </div>;
 }

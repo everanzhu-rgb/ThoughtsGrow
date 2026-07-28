@@ -186,7 +186,48 @@ test("growth atlas presents evidence and relationships without capability scorin
   assert.match(growth, /确认这条关系/);
   assert.match(growth, /api\/record-relations/);
   assert.match(growth, /onOpenRecord/);
+  assert.match(growth, /skip-graph-intro/);
+  assert.match(growth, /beginNodeDrag/);
+  assert.match(growth, /graphPan/);
+  assert.match(growth, /AnimatedCount/);
+  assert.match(heatmap, /daily-usage-strip/);
+  assert.match(heatmap, /当日使用/);
   assert.doesNotMatch(growth, /综合能力|metric-card|stage-label/);
+});
+
+test("visual personalization, timed use and cabinet reflections are durable", async () => {
+  const [home, atmosphere, app, activity, usageApi, commentsApi, cabinet, visualUpload, schema, migration, styles] = await Promise.all([
+    readFile(new URL("../app/components/DynamicHome.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/PageAtmosphere.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/activity/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/usage/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/cabinet/comments/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/CabinetPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/visual-settings/image/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../db/schema.ts", import.meta.url), "utf8"),
+    readFile(new URL("../drizzle/0011_usage_and_cabinet_comments.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/refinement.css", import.meta.url), "utf8"),
+  ]);
+  assert.match(home, /本次暂存/);
+  assert.match(home, /上传服务器/);
+  assert.match(home, /sourceUrl/);
+  assert.doesNotMatch(home, /序理.*原创/);
+  assert.match(atmosphere, /api\/visual-settings\/image/);
+  assert.match(visualUpload, /request\.body/);
+  assert.match(app, /api\/usage/);
+  assert.match(app, /sendBeacon/);
+  assert.match(activity, /totalUsageSeconds/);
+  assert.match(usageApi, /ON CONFLICT\(day\)/);
+  assert.match(commentsApi, /cabinet_comments/);
+  assert.match(cabinet, /cabinet-viewer/);
+  assert.match(cabinet, /留下此刻/);
+  assert.match(schema, /usageDaily/);
+  assert.match(schema, /cabinetComments/);
+  assert.match(migration, /usage_daily/);
+  assert.match(migration, /cabinet_comments/);
+  assert.match(styles, /background-size:contain/);
+  assert.match(styles, /galaxy-note-orbit/);
 });
 
 test("observatory is optional quick analysis and reports mirror the initial result", async () => {

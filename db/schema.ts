@@ -165,6 +165,19 @@ export const cabinetItems = sqliteTable("cabinet_items", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const cabinetComments = sqliteTable("cabinet_comments", {
+  id: text("id").primaryKey(),
+  cabinetItemId: text("cabinet_item_id").notNull(),
+  content: text("content").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const usageDaily = sqliteTable("usage_daily", {
+  day: text("day").primaryKey(),
+  durationSeconds: integer("duration_seconds").notNull().default(0),
+  lastSeenAt: text("last_seen_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const baseSpaces = sqliteTable("base_spaces", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),

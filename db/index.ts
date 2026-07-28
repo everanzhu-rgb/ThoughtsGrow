@@ -164,6 +164,17 @@ export async function ensureSchema() {
       note TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS cabinet_comments (
+      id TEXT PRIMARY KEY,
+      cabinet_item_id TEXT NOT NULL,
+      content TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS usage_daily (
+      day TEXT PRIMARY KEY,
+      duration_seconds INTEGER NOT NULL DEFAULT 0,
+      last_seen_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS base_spaces (
       id TEXT PRIMARY KEY, name TEXT NOT NULL, kind TEXT NOT NULL DEFAULT 'domain',
       description TEXT NOT NULL DEFAULT '', scope TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'active',
@@ -266,6 +277,7 @@ export async function ensureSchema() {
     d1.prepare("CREATE INDEX IF NOT EXISTS source_materials_created_idx ON source_materials(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS framework_node_notes_node_idx ON framework_node_notes(node_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS activity_events_occurred_idx ON activity_events(occurred_at)"),
+    d1.prepare("CREATE INDEX IF NOT EXISTS cabinet_comments_item_idx ON cabinet_comments(cabinet_item_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS base_nodes_space_idx ON base_nodes(space_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS base_node_questions_node_idx ON base_node_questions(node_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS record_node_links_record_idx ON record_node_links(record_id)"),

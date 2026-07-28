@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 import { env } from "cloudflare:workers";
-import { ensureSchema, getDb } from "@/db";
+import { getDb } from "@/db";
 import { visualSettings } from "@/db/schema";
 
-const ALLOWED_PAGES = new Set(["framework", "analyze", "history", "records", "growth", "topics", "cabinet", "new", "trash", "knowledge", "integration"]);
+const ALLOWED_PAGES = new Set(["dashboard", "framework", "analyze", "history", "records", "growth", "topics", "cabinet", "new", "trash", "knowledge", "integration"]);
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 type FilesBucket = {
@@ -23,7 +23,6 @@ function validPage(raw: FormDataEntryValue | string | null) {
 
 export async function GET(request: Request) {
   try {
-    await ensureSchema();
     const page = validPage(new URL(request.url).searchParams.get("page"));
     const [setting] = await getDb().select().from(visualSettings).where(eq(visualSettings.page, page)).limit(1);
     if (!setting) return Response.json({ imageUrl: null });
@@ -38,7 +37,6 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    await ensureSchema();
     const form = await request.formData();
     const page = validPage(form.get("page"));
     const file = form.get("file");

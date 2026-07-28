@@ -1,10 +1,9 @@
 import { desc, eq } from "drizzle-orm";
-import { ensureSchema, getDb } from "@/db";
+import { getDb } from "@/db";
 import { inspirationFavorites } from "@/db/schema";
 
 export async function GET() {
   try {
-    await ensureSchema();
     const favorites = await getDb().select().from(inspirationFavorites).orderBy(desc(inspirationFavorites.createdAt)).limit(100);
     return Response.json({ favorites });
   } catch (error) {
@@ -14,8 +13,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await ensureSchema();
-    const payload = (await request.json()) as { quote?: string; author?: string; language?: string; translation?: string; source?: string };
+    const payload = (await request.json()) as { quote?: string; author?: string; language?: string; translation?: string; source?: string; sourceUrl?: string };
     if (!payload.quote?.trim()) return Response.json({ error: "句子不能为空" }, { status: 400 });
     const [favorite] = await getDb().insert(inspirationFavorites).values({
       id: crypto.randomUUID(),
@@ -23,7 +21,7 @@ export async function POST(request: Request) {
       author: payload.author?.trim() || "",
       language: payload.language || "zh",
       translation: payload.translation?.trim() || "",
-      source: payload.source?.trim() || "",
+      source: [payload.source?.trim(), payload.sourceUrl?.trim()].filter(Boolean).join(" · "),
     }).returning();
     return Response.json({ favorite }, { status: 201 });
   } catch (error) {
@@ -33,7 +31,6 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    await ensureSchema();
     const payload = (await request.json()) as { id?: string };
     if (!payload.id) return Response.json({ error: "缺少收藏编号" }, { status: 400 });
     await getDb().delete(inspirationFavorites).where(eq(inspirationFavorites.id, payload.id));
