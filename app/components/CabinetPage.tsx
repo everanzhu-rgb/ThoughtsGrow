@@ -17,6 +17,8 @@ type CabinetItem = {
 
 type ApiPayload = {
   error?: string;
+  requestId?: string;
+  stage?: string;
   item?: CabinetItem;
   material?: { id: string };
 };
@@ -70,12 +72,21 @@ export function CabinetPage() {
     setMessageKind("info");
     setMessage("正在上传图片…");
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("extractedText", "");
-      const response = await fetch("/api/materials", { method: "POST", body: form });
+      const response = await fetch("/api/cabinet/image", {
+        method: "POST",
+        headers: {
+          "Content-Type": file.type,
+          "X-File-Name": encodeURIComponent(file.name),
+          "X-File-Size": String(file.size),
+        },
+        body: file,
+      });
       const data = await responsePayload(response);
-      if (!response.ok || !data.material?.id) throw new Error(data.error || "图片上传失败，请稍后重试。");
+      if (!response.ok || !data.material?.id) {
+        const requestId = data.requestId || response.headers.get("x-request-id");
+        const fallback = `图片上传失败（HTTP ${response.status || "网络错误"}）`;
+        throw new Error(`${data.error || fallback}${requestId ? `；请求编号：${requestId}` : ""}`);
+      }
       setImageUrl(`/api/materials/file?id=${encodeURIComponent(data.material.id)}`);
       setMessageKind("success");
       setMessage("图片已上传。填写信息后，点击“放入收藏橱”完成保存。");

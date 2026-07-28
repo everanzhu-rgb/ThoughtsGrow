@@ -3,7 +3,7 @@ import { access, readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("build contains the incremental thinking library", async () => {
-  const [layout, page, app, composer, home, map, heatmap, cabinet, training, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, mergeApi, cabinetApi, digestApi, trainingReportsApi, aiApi, deepseek, hosting, migration, cinematicMigration, unifiedMigration, trainingReportMigration] = await Promise.all([
+  const [layout, page, app, composer, home, map, heatmap, cabinet, training, activityApi, trashApi, knowledgeApi, materialsApi, materialFileApi, layoutApi, mergeApi, cabinetApi, cabinetImageApi, digestApi, trainingReportsApi, aiApi, deepseek, hosting, migration, cinematicMigration, unifiedMigration, trainingReportMigration] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/ThoughtLabApp.tsx", import.meta.url), "utf8"),
@@ -21,6 +21,7 @@ test("build contains the incremental thinking library", async () => {
     readFile(new URL("../app/api/framework-layout/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/records/merge/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/cabinet/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/cabinet/image/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/training-digest/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/training-reports/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/api/ai/analyze/route.ts", import.meta.url), "utf8"),
@@ -65,6 +66,12 @@ test("build contains the incremental thinking library", async () => {
   assert.match(cabinet, /图片已上传/);
   assert.match(cabinet, /aria-live="polite"/);
   assert.match(cabinet, /response\.json\(\)\.catch/);
+  assert.match(cabinet, /api\/cabinet\/image/);
+  assert.match(cabinetImageApi, /request\.body/);
+  assert.match(cabinetImageApi, /cabinet_image_upload_failed/);
+  assert.match(cabinetImageApi, /sourceMaterials/);
+  assert.doesNotMatch(cabinetImageApi, /ensureSchema/);
+  assert.doesNotMatch(cabinetApi, /ensureSchema/);
   assert.match(cabinetApi, /inspirationFavorites/);
   assert.match(training, /记忆复盘/);
   assert.match(training, /今日三篇/);
