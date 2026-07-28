@@ -26,6 +26,12 @@
   opacity: var(--content-visibility, 1);
   transition: opacity .32s ease;
 }
+.app-shell > .sidebar,
+.app-main > .topbar,
+.app-shell > .mobile-nav {
+  opacity: var(--content-visibility, 1);
+  transition: opacity .32s ease;
+}
 .page-dashboard .home-hero-copy,
 .page-dashboard .home-data-constellation,
 .page-dashboard .home-portals,

@@ -1583,7 +1583,7 @@ export function ThoughtLabApp() {
   };
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" style={{ "--content-visibility": Math.max(.04, 1 - sceneryFocus / 104) } as CSSProperties}>
       <aside className="sidebar">
         <button className="brand" onClick={() => go("dashboard")} aria-label="返回首页">
           <span className="brand-mark">序</span>
@@ -1620,7 +1620,7 @@ export function ThoughtLabApp() {
             <button aria-label="通知" className="notification-button" onClick={() => setUtilityPanel("notifications")}>·<i /></button>
           </div>
         </header>
-        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`} style={{ "--content-visibility": Math.max(.04, 1 - sceneryFocus / 104) } as CSSProperties}>
+        <main key={activePage} className={`page-content page-${activePage} page-transition-stage`}>
           {activePage !== "dashboard" && <PageAtmosphere page={activePage} title={pageTitle} />}
           {renderPage()}
         </main>
