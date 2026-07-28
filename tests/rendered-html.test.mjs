@@ -62,6 +62,9 @@ test("build contains the incremental thinking library", async () => {
   assert.match(layoutApi, /frameworkNodePositions/);
   assert.match(heatmap, /heat-focus/);
   assert.match(cabinet, /拾光橱/);
+  assert.match(cabinet, /图片已上传/);
+  assert.match(cabinet, /aria-live="polite"/);
+  assert.match(cabinet, /response\.json\(\)\.catch/);
   assert.match(cabinetApi, /inspirationFavorites/);
   assert.match(training, /记忆复盘/);
   assert.match(training, /今日三篇/);
