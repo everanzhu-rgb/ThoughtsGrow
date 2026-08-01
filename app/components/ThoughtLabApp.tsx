@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent, type ReactNode } from "react";
 import { MarkdownComposer } from "./MarkdownComposer";
 import { DynamicHome } from "./DynamicHome";
 import { FrameworkMindMap } from "./FrameworkMindMap";
@@ -122,17 +122,17 @@ type KnowledgeImport = {
   deleteAfter?: string | null;
 };
 
-const navItems: Array<{ id: PageKey; label: string; symbol: string }> = [
-  { id: "dashboard", label: "归航页 · Home", symbol: "⌂" },
-  { id: "framework", label: "观星台 · 体系全貌", symbol: "✦" },
-  { id: "analyze", label: "观照室 · 体系分析", symbol: "◉" },
-  { id: "history", label: "年轮志 · 版本历史", symbol: "◷" },
-  { id: "records", label: "行思录 · 思维记录", symbol: "≡" },
-  { id: "growth", label: "生长谱 · 成长分析", symbol: "↗" },
-  { id: "topics", label: "磨砺场 · 训练专题", symbol: "◎" },
-  { id: "cabinet", label: "拾光橱 · 我的收藏", symbol: "♢" },
-  { id: "new", label: "落笔 · 新建记录", symbol: "+" },
-  { id: "trash", label: "归藏处 · 回收站", symbol: "⌫" },
+const navItems: Array<{ id: PageKey; label: string; mobileLabel: string; symbol: string }> = [
+  { id: "dashboard", label: "归航页 · Home", mobileLabel: "归航", symbol: "⌂" },
+  { id: "framework", label: "观星台 · 体系全貌", mobileLabel: "观星", symbol: "✦" },
+  { id: "analyze", label: "观照室 · 体系分析", mobileLabel: "观照", symbol: "◉" },
+  { id: "history", label: "年轮志 · 版本历史", mobileLabel: "年轮", symbol: "◷" },
+  { id: "records", label: "行思录 · 思维记录", mobileLabel: "行思", symbol: "≡" },
+  { id: "growth", label: "生长谱 · 成长分析", mobileLabel: "生长", symbol: "↗" },
+  { id: "topics", label: "磨砺场 · 训练专题", mobileLabel: "磨砺", symbol: "◎" },
+  { id: "cabinet", label: "拾光橱 · 我的收藏", mobileLabel: "拾光", symbol: "♢" },
+  { id: "new", label: "落笔 · 新建记录", mobileLabel: "落笔", symbol: "+" },
+  { id: "trash", label: "归藏处 · 回收站", mobileLabel: "归藏", symbol: "⌫" },
 ];
 
 const qualityScores = [
@@ -401,6 +401,7 @@ function analysisToMarkdown(result: ModelAnalysis, focus: string) {
 
 export function ThoughtLabApp() {
   const [activePage, setActivePage] = useState<PageKey>("dashboard");
+  const mobileNavRef = useRef<HTMLElement>(null);
   const [records, setRecords] = useState<StoredRecord[]>(sampleRecords);
   const [selectedRecord, setSelectedRecord] = useState<StoredRecord | null>(null);
   const [integrationRecord, setIntegrationRecord] = useState<StoredRecord | null>(null);
@@ -586,6 +587,14 @@ export function ThoughtLabApp() {
     () => navItems.find((item) => item.id === activePage)?.label || "观星台",
     [activePage],
   );
+
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 720px)").matches) return;
+    const activeItem = mobileNavRef.current?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!activeItem) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    activeItem.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest", inline: "center" });
+  }, [activePage]);
 
   const filteredRecords = useMemo(() => records.filter((record) => {
     const query = recordQuery.trim().toLowerCase();
@@ -1656,10 +1665,16 @@ export function ThoughtLabApp() {
 
       {editingImport && <div className="modal-backdrop" role="presentation"><section className="edit-modal card" role="dialog" aria-modal="true" aria-label="编辑知识材料"><button className="modal-close" aria-label="关闭" onClick={() => setEditingImport(null)}>×</button><span className="eyebrow">重新检点</span><h2>编辑知识材料</h2><label className="field-label">出处<input value={editingImport.source} onChange={(event) => setEditingImport({ ...editingImport, source: event.target.value })} /></label><MarkdownComposer compact value={editingImport.content} onChange={(content) => setEditingImport({ ...editingImport, content })} placeholder="编辑材料正文…" /><label className="field-label">札记<textarea value={editingImport.note} onChange={(event) => setEditingImport({ ...editingImport, note: event.target.value })} /></label><div className="modal-actions"><button className="ghost-button" onClick={() => setEditingImport(null)}>取消</button><button className="primary-button" onClick={() => void saveImportEdit()}>保存修改</button></div></section></div>}
 
-      <nav className="mobile-nav" aria-label="移动端主导航">
-        {navItems.slice(0, 5).map((item) => (
-          <button key={item.id} className={activePage === item.id ? "active" : ""} onClick={() => go(item.id)}>
-            <span>{item.symbol}</span><small>{item.label}</small>
+      <nav ref={mobileNavRef} className="mobile-nav" aria-label="移动端主导航">
+        {navItems.map((item) => (
+          <button
+            key={item.id}
+            aria-current={activePage === item.id ? "page" : undefined}
+            aria-label={item.label}
+            className={activePage === item.id ? "active" : ""}
+            onClick={() => go(item.id)}
+          >
+            <span aria-hidden="true">{item.symbol}</span><small>{item.mobileLabel}</small>
           </button>
         ))}
       </nav>

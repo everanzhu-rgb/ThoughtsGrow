@@ -1433,7 +1433,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
     width: 100%;
     padding-left: 15px;
     padding-right: 15px;
-    padding-bottom: 118px;
+    padding-bottom: calc(118px + env(safe-area-inset-bottom));
   }
   .gothic-display-title {
     font-size: clamp(48px, 15vw, 76px) !important;
@@ -1449,7 +1449,7 @@ html, body { max-width: 100%; overflow-x: hidden; }
   .home-gothic-title em { margin-left: 12px; }
   .page-atmosphere-controls {
     right: 10px;
-    bottom: 74px;
+    bottom: calc(92px + env(safe-area-inset-bottom));
     left: 10px;
     max-width: none;
     flex-wrap: wrap;

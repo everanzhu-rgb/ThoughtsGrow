@@ -263,8 +263,8 @@
 }
 
 @media(max-width:720px) {
-  .page-atmosphere { inset: 58px 0 auto !important; height: calc(100dvh - 58px); min-height: 440px; }
-  .page-atmosphere-controls { right: 10px; bottom: 74px; left: 10px; max-width: none; }
+  .page-atmosphere { inset: calc(58px + env(safe-area-inset-top)) 0 auto !important; height: calc(100dvh - 58px - env(safe-area-inset-top)); min-height: 440px; }
+  .page-atmosphere-controls { right: 10px; bottom: calc(92px + env(safe-area-inset-bottom)); left: 10px; max-width: none; }
   .page-atmosphere-controls .page-scenery-control { flex: 1 1 150px; }
   .page-atmosphere-controls .page-scenery-control input { width: min(30vw,120px); }
   .home-art-controls { flex-wrap: wrap !important; border-radius: 14px; }
