@@ -138,6 +138,10 @@ test("records can be compiled into an editable cognitive base", async () => {
   assert.match(basePage, /新增领域基座/);
   assert.match(basePage, /认知模组/);
   assert.match(basePage, /可执行思维流程/);
+  assert.match(basePage, /按认知结构生成流程/);
+  assert.match(basePage, /reorder_nodes/);
+  assert.match(basePage, /reorder_questions/);
+  assert.match(basePage, /orderedModules/);
   assert.match(basePage, /vertical/);
   assert.doesNotMatch(basePage, /开始实践这套流程/);
   assert.match(basePage, /建立双向关系/);
@@ -149,6 +153,9 @@ test("records can be compiled into an editable cognitive base", async () => {
   assert.match(versionHistory, /以此版本恢复/);
   assert.match(versionHistory, /删除版本/);
   assert.match(baseApi, /restore_version/);
+  assert.match(baseApi, /baseDefaultDeletions/);
+  assert.match(baseApi, /reorder_nodes/);
+  assert.match(baseApi, /reorder_questions/);
   assert.match(baseApi, /snapshotJson/);
   assert.match(integrationApi, /recordNodeLinks/);
   assert.match(integrationApi, /publishSpace/);

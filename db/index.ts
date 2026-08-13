@@ -196,6 +196,10 @@ export async function ensureSchema() {
       sort_order INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL DEFAULT 'active',
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     )`),
+    d1.prepare(`CREATE TABLE IF NOT EXISTS base_default_deletions (
+      entity_id TEXT PRIMARY KEY, entity_type TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`),
     d1.prepare(`CREATE TABLE IF NOT EXISTS record_node_links (
       id TEXT PRIMARY KEY, record_id TEXT NOT NULL, node_id TEXT NOT NULL,
       relation TEXT NOT NULL DEFAULT 'source', note TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -268,6 +272,9 @@ export async function ensureSchema() {
       ('q-logic-1','meta-logic','从这些前提到这个结论，中间是否缺少一步？','把直觉跳跃改写成显式推理连接。','出现所以、因此等结论词时','每个结论都能指出其前提和推理规则',120),
       ('q-importance-1','meta-importance','如果只能保留三个变量，哪些最可能改变最终判断？','通过反事实删减识别真正关键的信息。','信息很多且权重不明时','关键变量及其影响方向清楚',130),
       ('q-fairness-1','meta-fairness','我是否能用对方会认可的方式陈述最强反方观点？','用钢人化检验立场偏差和双重标准。','涉及利益或价值冲突时','反方观点被准确呈现且标准一致',140)`),
+    d1.prepare("DELETE FROM base_node_questions WHERE id IN (SELECT entity_id FROM base_default_deletions WHERE entity_type = 'question')"),
+    d1.prepare("DELETE FROM base_node_questions WHERE node_id IN (SELECT entity_id FROM base_default_deletions WHERE entity_type = 'node')"),
+    d1.prepare("DELETE FROM base_nodes WHERE id IN (SELECT entity_id FROM base_default_deletions WHERE entity_type = 'node')"),
     d1.prepare("CREATE INDEX IF NOT EXISTS thinking_records_created_idx ON thinking_records(created_at)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS analysis_record_idx ON analysis_versions(record_id)"),
     d1.prepare("CREATE INDEX IF NOT EXISTS conversation_record_idx ON conversation_turns(record_id)"),

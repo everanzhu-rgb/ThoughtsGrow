@@ -225,6 +225,12 @@ export const baseNodeQuestions = sqliteTable("base_node_questions", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const baseDefaultDeletions = sqliteTable("base_default_deletions", {
+  entityId: text("entity_id").primaryKey(),
+  entityType: text("entity_type").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const recordNodeLinks = sqliteTable("record_node_links", {
   id: text("id").primaryKey(),
   recordId: text("record_id").notNull(),

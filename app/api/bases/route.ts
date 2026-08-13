@@ -1,6 +1,6 @@
 import { asc, desc, eq, or } from "drizzle-orm";
 import { ensureSchema, getDb } from "@/db";
-import { baseNodeLinks, baseNodeQuestions, baseNodes, baseSpaces, baseVersions, recordNodeLinks, thinkingRecords } from "@/db/schema";
+import { baseDefaultDeletions, baseNodeLinks, baseNodeQuestions, baseNodes, baseSpaces, baseVersions, recordNodeLinks, thinkingRecords } from "@/db/schema";
 
 async function snapshot(spaceId: string) {
   const db = getDb();
@@ -34,7 +34,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     await ensureSchema();
-    const payload = (await request.json()) as { action?: string; id?: string; spaceId?: string; name?: string; kind?: string; description?: string; scope?: string; parentId?: string | null; nodeType?: string; title?: string; content?: string; operational?: unknown; sortOrder?: number; fromNodeId?: string; toNodeId?: string; recordId?: string; nodeId?: string; relation?: string; label?: string; note?: string; summary?: string; sourceRecordIds?: string[]; versionId?: string; question?: string; rationale?: string; trigger?: string; completion?: string };
+    const payload = (await request.json()) as { action?: string; id?: string; ids?: string[]; spaceId?: string; name?: string; kind?: string; description?: string; scope?: string; parentId?: string | null; nodeType?: string; title?: string; content?: string; operational?: unknown; sortOrder?: number; fromNodeId?: string; toNodeId?: string; recordId?: string; nodeId?: string; relation?: string; label?: string; note?: string; summary?: string; sourceRecordIds?: string[]; versionId?: string; question?: string; rationale?: string; trigger?: string; completion?: string };
     const db = getDb(); const now = new Date().toISOString();
     if (payload.action === "create_space") {
       const [space] = await db.insert(baseSpaces).values({ id: crypto.randomUUID(), name: payload.name?.trim() || "未命名领域", kind: payload.kind === "meta" ? "meta" : "domain", description: payload.description?.trim() || "", scope: payload.scope?.trim() || "" }).returning();
@@ -55,11 +55,17 @@ export async function POST(request: Request) {
       return Response.json({ node }, { status: 201 });
     }
     if (payload.action === "update_node" && payload.id) {
-      const [node] = await db.update(baseNodes).set({ spaceId: payload.spaceId, parentId: payload.parentId || null, nodeType: payload.nodeType, title: payload.title?.trim(), content: payload.content?.trim(), ...(payload.operational !== undefined ? { operationalJson: JSON.stringify(payload.operational) } : {}), updatedAt: now }).where(eq(baseNodes.id, payload.id)).returning();
+      const [node] = await db.update(baseNodes).set({ spaceId: payload.spaceId, parentId: payload.parentId || null, nodeType: payload.nodeType, title: payload.title?.trim(), content: payload.content?.trim(), ...(payload.operational !== undefined ? { operationalJson: JSON.stringify(payload.operational) } : {}), ...(payload.sortOrder !== undefined ? { sortOrder: payload.sortOrder } : {}), updatedAt: now }).where(eq(baseNodes.id, payload.id)).returning();
       return Response.json({ node });
     }
     if (payload.action === "delete_node" && payload.id) {
+      await db.insert(baseDefaultDeletions).values({ entityId: payload.id, entityType: "node" }).onConflictDoNothing();
+      await db.update(baseNodes).set({ parentId: null, updatedAt: now }).where(eq(baseNodes.parentId, payload.id));
       await db.delete(recordNodeLinks).where(eq(recordNodeLinks.nodeId, payload.id)); await db.delete(baseNodeQuestions).where(eq(baseNodeQuestions.nodeId, payload.id)); await db.delete(baseNodeLinks).where(or(eq(baseNodeLinks.fromNodeId, payload.id), eq(baseNodeLinks.toNodeId, payload.id))); await db.delete(baseNodes).where(eq(baseNodes.id, payload.id));
+      return Response.json({ ok: true });
+    }
+    if (payload.action === "reorder_nodes" && payload.ids?.length) {
+      for (const [index, id] of payload.ids.entries()) await db.update(baseNodes).set({ sortOrder: (index + 1) * 10, updatedAt: now }).where(eq(baseNodes.id, id));
       return Response.json({ ok: true });
     }
     if (payload.action === "create_question" && payload.nodeId && payload.question?.trim()) {
@@ -67,10 +73,14 @@ export async function POST(request: Request) {
       return Response.json({ question }, { status: 201 });
     }
     if (payload.action === "update_question" && payload.id) {
-      const [question] = await db.update(baseNodeQuestions).set({ question: payload.question?.trim(), rationale: payload.rationale?.trim(), trigger: payload.trigger?.trim(), completion: payload.completion?.trim(), updatedAt: now }).where(eq(baseNodeQuestions.id, payload.id)).returning();
+      const [question] = await db.update(baseNodeQuestions).set({ question: payload.question?.trim(), rationale: payload.rationale?.trim(), trigger: payload.trigger?.trim(), completion: payload.completion?.trim(), ...(payload.sortOrder !== undefined ? { sortOrder: payload.sortOrder } : {}), updatedAt: now }).where(eq(baseNodeQuestions.id, payload.id)).returning();
       return Response.json({ question });
     }
-    if (payload.action === "delete_question" && payload.id) { await db.delete(baseNodeQuestions).where(eq(baseNodeQuestions.id, payload.id)); return Response.json({ ok: true }); }
+    if (payload.action === "delete_question" && payload.id) { await db.insert(baseDefaultDeletions).values({ entityId: payload.id, entityType: "question" }).onConflictDoNothing(); await db.delete(baseNodeQuestions).where(eq(baseNodeQuestions.id, payload.id)); return Response.json({ ok: true }); }
+    if (payload.action === "reorder_questions" && payload.ids?.length) {
+      for (const [index, id] of payload.ids.entries()) await db.update(baseNodeQuestions).set({ sortOrder: (index + 1) * 10, updatedAt: now }).where(eq(baseNodeQuestions.id, id));
+      return Response.json({ ok: true });
+    }
     if (payload.action === "create_link" && payload.fromNodeId && payload.toNodeId) {
       const [link] = await db.insert(baseNodeLinks).values({ id: crypto.randomUUID(), fromNodeId: payload.fromNodeId, toNodeId: payload.toNodeId, relation: payload.relation || "related", label: payload.label || "" }).returning(); return Response.json({ link }, { status: 201 });
     }
@@ -95,6 +105,8 @@ export async function POST(request: Request) {
       for (const node of currentNodes) { await db.delete(baseNodeLinks).where(or(eq(baseNodeLinks.fromNodeId, node.id), eq(baseNodeLinks.toNodeId, node.id))); if (!(state.nodes || []).some((saved) => saved.id === node.id)) await db.delete(recordNodeLinks).where(eq(recordNodeLinks.nodeId, node.id)); }
       for (const node of currentNodes) await db.delete(baseNodeQuestions).where(eq(baseNodeQuestions.nodeId, node.id));
       await db.delete(baseNodes).where(eq(baseNodes.spaceId, version.spaceId));
+      for (const node of state.nodes || []) await db.delete(baseDefaultDeletions).where(eq(baseDefaultDeletions.entityId, node.id));
+      for (const question of state.questions || []) await db.delete(baseDefaultDeletions).where(eq(baseDefaultDeletions.entityId, question.id));
       for (const node of state.nodes || []) await db.insert(baseNodes).values({ ...node, updatedAt: now }).onConflictDoNothing();
       for (const link of state.links || []) await db.insert(baseNodeLinks).values(link).onConflictDoNothing();
       for (const question of state.questions || []) await db.insert(baseNodeQuestions).values({ ...question, updatedAt: now }).onConflictDoNothing();
