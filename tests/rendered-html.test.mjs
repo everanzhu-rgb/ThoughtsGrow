@@ -142,6 +142,9 @@ test("records can be compiled into an editable cognitive base", async () => {
   assert.match(basePage, /reorder_nodes/);
   assert.match(basePage, /reorder_questions/);
   assert.match(basePage, /orderedModules/);
+  assert.match(basePage, /kind: "module"/);
+  assert.match(basePage, /depth: depth \+ 1/);
+  assert.match(basePage, /【模组】/);
   assert.match(basePage, /vertical/);
   assert.doesNotMatch(basePage, /开始实践这套流程/);
   assert.match(basePage, /建立双向关系/);
@@ -162,6 +165,7 @@ test("records can be compiled into an editable cognitive base", async () => {
   assert.match(integrationAi, /个人认知体系编译器/);
   assert.match(baseContext, /当前正式生效、可编辑的个人思维基座/);
   assert.match(baseContext, /activeAnalysisFlow/);
+  assert.match(baseContext, /hierarchy\.slice\(0, depth\)/);
   assert.match(analysisApi, /activeBaseBrief/);
   assert.match(analysisApi, /顺序和 step 名称一字不改/);
   assert.match(schema, /baseSpaces/);

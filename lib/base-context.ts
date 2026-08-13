@@ -3,6 +3,7 @@ import { ensureSchema, getDb } from "@/db";
 import { baseNodeQuestions, baseNodes, baseSpaces } from "@/db/schema";
 
 export type ActiveFlow = { id: string; name: string; steps: Array<{ title: string; question: string; why: string; done: string }> };
+type StoredFlowStep = ActiveFlow["steps"][number] & { kind?: "module" | "question"; depth?: number };
 
 export async function activeAnalysisFlow(spaceId = "meta-core"): Promise<ActiveFlow | null> {
   await ensureSchema();
@@ -10,8 +11,21 @@ export async function activeAnalysisFlow(spaceId = "meta-core"): Promise<ActiveF
   const playbook = nodes.find((node) => node.nodeType === "playbook" && node.spaceId === spaceId) || nodes.find((node) => node.nodeType === "playbook" && node.spaceId === "meta-core") || nodes.find((node) => node.nodeType === "playbook");
   if (!playbook) return null;
   try {
-    const parsed = JSON.parse(playbook.operationalJson || "{}") as { steps?: ActiveFlow["steps"] };
-    const steps = (parsed.steps || []).filter((step) => step.title && step.question);
+    const parsed = JSON.parse(playbook.operationalJson || "{}") as { steps?: StoredFlowStep[] };
+    const hierarchy: string[] = [];
+    const steps: ActiveFlow["steps"] = [];
+    for (const step of parsed.steps || []) {
+      const depth = Math.max(0, Number.isFinite(step.depth) ? Number(step.depth) : 0);
+      if (step.kind === "module") {
+        if (!step.title) continue;
+        hierarchy[depth] = step.title;
+        hierarchy.length = depth + 1;
+        continue;
+      }
+      if (!step.title || !step.question) continue;
+      const path = hierarchy.slice(0, depth).filter(Boolean);
+      steps.push({ title: path.length ? `${path.join(" → ")} · ${step.title}` : step.title, question: step.question, why: step.why, done: step.done });
+    }
     return steps.length ? { id: playbook.id, name: playbook.title, steps } : null;
   } catch { return null; }
 }
@@ -29,7 +43,7 @@ export async function activeBaseBrief(spaceId = "meta-core") {
     const depth = (node: typeof baseNodes.$inferSelect) => { let level = 0; let current = node; const seen = new Set<string>(); while (current.parentId && !seen.has(current.parentId)) { seen.add(current.parentId); const parent = ownNodes.find((item) => item.id === current.parentId); if (!parent) break; level += 1; current = parent; } return level; };
     const own = ownNodes.slice(0, 60).map((node) => {
       let steps = "";
-      try { const parsed = JSON.parse(node.operationalJson || "{}") as { steps?: Array<{ title?: string; question?: string }> }; if (parsed.steps?.length) steps = `；流程：${parsed.steps.map((step) => `${step.title}:${step.question}`).join(" → ")}`; } catch { steps = ""; }
+      try { const parsed = JSON.parse(node.operationalJson || "{}") as { steps?: StoredFlowStep[] }; const executable = (parsed.steps || []).filter((step) => step.kind !== "module" && step.question); if (executable.length) steps = `；流程：${executable.map((step) => `${step.title}:${step.question}`).join(" → ")}`; } catch { steps = ""; }
       const prompts = questions.filter((item) => item.nodeId === node.id).map((item) => `「${item.question}」；构建依据：${item.rationale || "未填写"}；触发条件：${item.trigger || "通用"}；完成标准：${item.completion || "未填写"}`).join(" | ");
       return `${"  ".repeat(depth(node))}- ${node.title}：${node.content}${steps}${prompts ? `；可用启发式问题：${prompts}` : ""}`;
     }).join("\n");
